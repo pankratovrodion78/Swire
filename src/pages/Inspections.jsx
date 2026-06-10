@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
+import { getAllRecipes, findRecipeByBarcode } from '../utils/recipes';
 import BarcodeScanner from '../components/BarcodeScanner';
 import CameraCapture from '../components/CameraCapture';
 
@@ -11,11 +12,15 @@ export default function Inspections() {
   const [scanning, setScanning] = useState(false);
   const [scanTarget, setScanTarget] = useState(null);
   const [expandedIdx, setExpandedIdx] = useState(null);
+  const [matchResults, setMatchResults] = useState({});
+  const reportRef = useRef(null);
+  const scanTargetRef = useRef(null);
 
   useEffect(() => {
     const r = getReport(id);
     if (!r) return navigate('/');
     setReport(r);
+    reportRef.current = r;
   }, [id, navigate]);
 
   function createInspection() {
@@ -27,50 +32,104 @@ export default function Inspections() {
       canPhoto: null,
       casePhoto: null,
       notes: '',
+      primaryMatch: null,
+      secondaryMatch: null,
     };
   }
 
-  function addInspection() {
-    const updated = { ...report };
-    updated.inspections = [...updated.inspections, createInspection()];
+  function updateReport(updated) {
     setReport(updated);
+    reportRef.current = updated;
     saveReport(updated);
+  }
+
+  function addInspection() {
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
+    updated.inspections = [...updated.inspections, createInspection()];
+    updateReport(updated);
     setExpandedIdx(updated.inspections.length - 1);
   }
 
   function updateInspection(idx, field, value) {
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.inspections = [...updated.inspections];
     updated.inspections[idx] = { ...updated.inspections[idx], [field]: value };
-    setReport(updated);
-    saveReport(updated);
+
+    if (field === 'primaryCode' || field === 'secondaryCode') {
+      const recipe = findRecipeByBarcode(value);
+      const matchKey = `${idx}-${field}`;
+      if (recipe) {
+        setMatchResults(prev => ({ ...prev, [matchKey]: { match: true, recipe } }));
+        if (field === 'primaryCode') {
+          updated.inspections[idx].primaryMatch = recipe.name;
+        } else {
+          updated.inspections[idx].secondaryMatch = recipe.name;
+        }
+      } else if (value.trim()) {
+        setMatchResults(prev => ({ ...prev, [matchKey]: { match: false } }));
+        if (field === 'primaryCode') {
+          updated.inspections[idx].primaryMatch = null;
+        } else {
+          updated.inspections[idx].secondaryMatch = null;
+        }
+      }
+    }
+
+    updateReport(updated);
   }
 
   function removeInspection(idx) {
     if (!confirm('Remove this inspection entry?')) return;
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.inspections = updated.inspections.filter((_, i) => i !== idx);
-    setReport(updated);
-    saveReport(updated);
+    updateReport(updated);
     setExpandedIdx(null);
   }
 
-  const handleScan = useCallback((code) => {
-    if (scanTarget !== null) {
-      updateInspection(scanTarget.idx, scanTarget.field, code);
+  function handleScan(code) {
+    const target = scanTargetRef.current;
+    if (target) {
+      updateInspection(target.idx, target.field, code);
     }
     setScanning(false);
     setScanTarget(null);
-  }, [scanTarget, report]);
+    scanTargetRef.current = null;
+  }
 
   function startScan(idx, field) {
-    setScanTarget({ idx, field });
+    const target = { idx, field };
+    setScanTarget(target);
+    scanTargetRef.current = target;
     setScanning(true);
   }
 
   if (!report) return null;
 
   const CONDITIONS = ['Good', 'Damaged', 'Misaligned', 'Missing Label', 'Other'];
+
+  function renderMatchBadge(idx, field) {
+    const key = `${idx}-${field}`;
+    const result = matchResults[key];
+    if (!result) return null;
+    if (result.match) {
+      return (
+        <div className="match-result match-success">
+          MATCH: {result.recipe.name} — {result.recipe.flavor} ({result.recipe.packageSize})
+        </div>
+      );
+    }
+    return (
+      <div className="match-result match-fail">
+        NO MATCH — Barcode not found in recipes. Verify product is correct.
+      </div>
+    );
+  }
 
   return (
     <div className="page inspect-page">
@@ -132,6 +191,7 @@ export default function Inspections() {
                       Scan
                     </button>
                   </div>
+                  {renderMatchBadge(idx, 'primaryCode')}
                 </div>
 
                 <div className="form-group">
@@ -147,6 +207,7 @@ export default function Inspections() {
                       Scan
                     </button>
                   </div>
+                  {renderMatchBadge(idx, 'secondaryCode')}
                 </div>
 
                 <div className="form-group">
@@ -171,11 +232,13 @@ export default function Inspections() {
                     label="Can Photo (show whole can)"
                     existingPhoto={ins.canPhoto}
                     onCapture={data => updateInspection(idx, 'canPhoto', data)}
+                    expectedProduct={ins.primaryMatch || null}
                   />
                   <CameraCapture
                     label="Case/Cardboard Photo (show whole case)"
                     existingPhoto={ins.casePhoto}
                     onCapture={data => updateInspection(idx, 'casePhoto', data)}
+                    expectedProduct={ins.secondaryMatch || ins.primaryMatch || null}
                   />
                 </div>
 
@@ -208,7 +271,7 @@ export default function Inspections() {
       </div>
 
       {scanning && (
-        <BarcodeScanner onScan={handleScan} onClose={() => setScanning(false)} />
+        <BarcodeScanner onScan={handleScan} onClose={() => { setScanning(false); setScanTarget(null); scanTargetRef.current = null; }} />
       )}
     </div>
   );

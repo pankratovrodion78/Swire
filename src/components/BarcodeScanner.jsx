@@ -3,33 +3,58 @@ import { Html5Qrcode } from 'html5-qrcode';
 
 export default function BarcodeScanner({ onScan, onClose }) {
   const [error, setError] = useState('');
+  const [manualCode, setManualCode] = useState('');
   const scannerRef = useRef(null);
   const containerRef = useRef(null);
+  const onScanRef = useRef(onScan);
+  const stoppedRef = useRef(false);
+
+  onScanRef.current = onScan;
 
   useEffect(() => {
     const id = 'barcode-reader-' + Date.now();
     containerRef.current.id = id;
     const scanner = new Html5Qrcode(id);
     scannerRef.current = scanner;
+    stoppedRef.current = false;
 
     scanner
       .start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 150 } },
+        { fps: 10, qrbox: { width: 250, height: 150 }, formatsToSupport: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
         (decodedText) => {
-          scanner.stop().catch(() => {});
-          onScan(decodedText);
+          if (stoppedRef.current) return;
+          stoppedRef.current = true;
+          scanner.stop().then(() => {
+            onScanRef.current(decodedText);
+          }).catch(() => {
+            onScanRef.current(decodedText);
+          });
         },
         () => {}
       )
-      .catch((err) => {
-        setError('Camera access denied or not available. You can type the code manually.');
+      .catch(() => {
+        setError('Camera access denied or not available. Type the code manually below.');
       });
 
     return () => {
-      scanner.stop().catch(() => {});
+      if (!stoppedRef.current) {
+        stoppedRef.current = true;
+        scanner.stop().catch(() => {});
+      }
     };
-  }, [onScan]);
+  }, []);
+
+  function handleManualSubmit(e) {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      if (scannerRef.current && !stoppedRef.current) {
+        stoppedRef.current = true;
+        scannerRef.current.stop().catch(() => {});
+      }
+      onScanRef.current(manualCode.trim());
+    }
+  }
 
   return (
     <div className="scanner-overlay">
@@ -41,6 +66,18 @@ export default function BarcodeScanner({ onScan, onClose }) {
         <div ref={containerRef} className="scanner-viewport" />
         {error && <p className="scanner-error">{error}</p>}
         <p className="scanner-hint">Point camera at product barcode</p>
+        <form onSubmit={handleManualSubmit} className="manual-entry">
+          <input
+            className="input"
+            placeholder="Or type barcode manually..."
+            value={manualCode}
+            onChange={e => setManualCode(e.target.value)}
+            autoFocus={!!error}
+          />
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!manualCode.trim()}>
+            Enter
+          </button>
+        </form>
       </div>
     </div>
   );

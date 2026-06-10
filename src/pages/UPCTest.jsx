@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -9,6 +9,8 @@ export default function UPCTest() {
   const [report, setReport] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanTarget, setScanTarget] = useState(null);
+  const reportRef = useRef(null);
+  const scanTargetRef = useRef(null);
 
   useEffect(() => {
     const r = getReport(id);
@@ -18,6 +20,7 @@ export default function UPCTest() {
       saveReport(r);
     }
     setReport(r);
+    reportRef.current = r;
   }, [id, navigate]);
 
   function createTest() {
@@ -30,46 +33,60 @@ export default function UPCTest() {
     };
   }
 
+  function updateReport(updated) {
+    setReport(updated);
+    reportRef.current = updated;
+    saveReport(updated);
+  }
+
   function updateTest(idx, field, value) {
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.upcTests = [...updated.upcTests];
     updated.upcTests[idx] = { ...updated.upcTests[idx], [field]: value };
-    setReport(updated);
-    saveReport(updated);
+    updateReport(updated);
   }
 
   function addTest() {
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.upcTests = [...updated.upcTests, createTest()];
-    setReport(updated);
-    saveReport(updated);
+    updateReport(updated);
   }
 
   function removeTest(idx) {
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.upcTests = updated.upcTests.filter((_, i) => i !== idx);
-    setReport(updated);
-    saveReport(updated);
+    updateReport(updated);
   }
 
   function updateScannerPerf(idx, value) {
-    const updated = { ...report };
+    const current = reportRef.current;
+    if (!current) return;
+    const updated = { ...current };
     updated.scannerPerformance = [...updated.scannerPerformance];
     updated.scannerPerformance[idx] = { ...updated.scannerPerformance[idx], goodReads: value };
-    setReport(updated);
-    saveReport(updated);
+    updateReport(updated);
   }
 
-  const handleScan = useCallback((code) => {
-    if (scanTarget !== null) {
-      updateTest(scanTarget.idx, scanTarget.field, code);
+  function handleScan(code) {
+    const target = scanTargetRef.current;
+    if (target) {
+      updateTest(target.idx, target.field, code);
     }
     setScanning(false);
     setScanTarget(null);
-  }, [scanTarget, report]);
+    scanTargetRef.current = null;
+  }
 
   function startScan(idx, field) {
-    setScanTarget({ idx, field });
+    const target = { idx, field };
+    setScanTarget(target);
+    scanTargetRef.current = target;
     setScanning(true);
   }
 
@@ -197,7 +214,7 @@ export default function UPCTest() {
       </div>
 
       {scanning && (
-        <BarcodeScanner onScan={handleScan} onClose={() => setScanning(false)} />
+        <BarcodeScanner onScan={handleScan} onClose={() => { setScanning(false); setScanTarget(null); scanTargetRef.current = null; }} />
       )}
     </div>
   );

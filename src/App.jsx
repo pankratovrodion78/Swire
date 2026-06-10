@@ -5,6 +5,7 @@ import ShiftSetup from './pages/ShiftSetup';
 import UPCTest from './pages/UPCTest';
 import Inspections from './pages/Inspections';
 import Review from './pages/Review';
+import Admin from './pages/Admin';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/report/:id/setup" element={<ShiftSetup />} />
           <Route path="/report/:id/upc" element={<UPCTest />} />
           <Route path="/report/:id/inspect" element={<Inspections />} />
