@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { createNewReport, getAllReports, deleteReport, saveReport } from '../utils/storage';
 import { downloadPDF } from '../utils/pdf';
+import { exportReportToExcel, exportAllReportsToExcel } from '../utils/excel';
 import { useState } from 'react';
 
 export default function Home() {
@@ -66,7 +67,12 @@ export default function Home() {
 
       {completed.length > 0 && (
         <section className="report-section">
-          <h3>Completed Reports</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Completed Reports</h3>
+            <button className="btn btn-sm btn-outline" onClick={() => exportAllReportsToExcel(completed)}>
+              Export All to Excel
+            </button>
+          </div>
           <div className="report-list">
             {completed.map(r => (
               <div key={r.id} className="report-card">
@@ -78,6 +84,9 @@ export default function Home() {
                 <div className="report-card-actions">
                   <button className="btn btn-sm btn-outline" onClick={() => downloadPDF(r)}>
                     PDF
+                  </button>
+                  <button className="btn btn-sm btn-outline" onClick={() => exportReportToExcel(r)}>
+                    Excel
                   </button>
                   <button className="btn btn-sm" onClick={() => navigate(`/report/${r.id}/setup`)}>
                     View

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
 import { generatePDF, downloadPDF } from '../utils/pdf';
+import { exportReportToExcel } from '../utils/excel';
 
 export default function Review() {
   const { id } = useParams();
@@ -214,6 +215,9 @@ export default function Review() {
             Save Only
           </button>
         </div>
+        <button className="btn btn-outline btn-full" onClick={() => exportReportToExcel(report)} style={{ marginTop: 8 }}>
+          Export to Excel (.xlsx)
+        </button>
       </div>
     </div>
   );
