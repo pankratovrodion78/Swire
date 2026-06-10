@@ -319,6 +319,44 @@ body { min-height: 100dvh; }
 .page-actions-row { display: flex; gap: 8px; justify-content: center; }
 .btn-full { width: 100%; }
 
+/* Vision / camera recognition */
+.vision-camera { position: relative; border-radius: var(--radius); overflow: hidden; background: #000; }
+.vision-verdict {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: center;
+}
+.vision-verdict-can { background: rgba(46,125,50,0.85); }
+.vision-verdict-bottle { background: rgba(21,101,192,0.85); }
+.vision-verdict-unknown { background: rgba(200,16,46,0.85); }
+.vision-confidence { font-size: 13px; font-weight: 600; opacity: 0.9; }
+.vision-spin-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 14px; pointer-events: none; }
+.vision-spin-text { color: #ffeb3b; font-weight: 800; font-size: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); margin-bottom: 8px; text-align: center; }
+.vision-progress { width: 100%; height: 10px; background: rgba(255,255,255,0.3); border-radius: 5px; overflow: hidden; }
+.vision-progress-bar { height: 100%; background: var(--green); transition: width 0.3s; }
+.vision-section { margin-top: 12px; }
+.vision-predictions { margin-top: 10px; }
+.vision-prediction-row { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.vision-prediction-pct { font-weight: 700; color: var(--text-muted); }
+.vision-spin-result { margin-top: 12px; font-size: 14px; }
+.vision-spin-warning { margin-top: 6px; font-weight: 700; }
+.vision-match-results { margin-top: 12px; }
+.vision-runner-up { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+.vision-ref-list { margin-top: 16px; }
+.vision-ref-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.vision-angle-count { text-align: center; font-weight: 700; font-size: 16px; margin: 10px 0; }
+.vision-teaching { margin-top: 8px; }
+
 /* PDF Preview */
 .pdf-preview-container { width: 100%; }
 .pdf-preview-frame { width: 100%; height: 500px; border: 1px solid var(--border); border-radius: var(--radius); }

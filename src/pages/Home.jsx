@@ -34,6 +34,9 @@ export default function Home() {
         <button className="btn btn-outline" onClick={() => navigate('/admin')} style={{ marginTop: 10 }}>
           Recipe Management (Admin)
         </button>
+        <button className="btn btn-outline" onClick={() => navigate('/vision')} style={{ marginTop: 10, marginLeft: 8 }}>
+          Camera Recognition (Beta)
+        </button>
       </div>
 
       {inProgress.length > 0 && (
