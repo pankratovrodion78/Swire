@@ -33,10 +33,19 @@ export default function Review() {
     saveReport(updated);
     setReport(updated);
     downloadPDF(updated);
+    navigate('/');
   }
 
   function saveDraft() {
     downloadPDF(report);
+  }
+
+  function saveWithoutPDF() {
+    const updated = { ...report, status: 'completed' };
+    saveReport(updated);
+    setReport(updated);
+    alert('Report saved successfully!');
+    navigate('/');
   }
 
   return (
@@ -141,16 +150,21 @@ export default function Review() {
         </div>
       </div>
 
-      <div className="page-actions">
-        <button className="btn btn-outline" onClick={() => navigate(`/report/${id}/inspect`)}>
-          ← Back
-        </button>
-        <button className="btn btn-outline" onClick={saveDraft}>
-          Save Draft PDF
-        </button>
-        <button className="btn btn-primary btn-lg" onClick={finalizeAndDownload}>
+      <div className="page-actions-stacked">
+        <button className="btn btn-primary btn-lg btn-full" onClick={finalizeAndDownload}>
           Complete & Download PDF
         </button>
+        <div className="page-actions-row">
+          <button className="btn btn-outline" onClick={() => navigate(`/report/${id}/inspect`)}>
+            ← Back
+          </button>
+          <button className="btn btn-outline" onClick={saveDraft}>
+            Draft PDF
+          </button>
+          <button className="btn btn-outline" onClick={saveWithoutPDF}>
+            Save Only
+          </button>
+        </div>
       </div>
     </div>
   );
