@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Home from './pages/Home';
 import ShiftSetup from './pages/ShiftSetup';
@@ -8,7 +8,7 @@ import Review from './pages/Review';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Header />
       <main className="app-main">
         <Routes>
@@ -19,6 +19,6 @@ export default function App() {
           <Route path="/report/:id/review" element={<Review />} />
         </Routes>
       </main>
-    </BrowserRouter>
+    </Router>
   );
 }
