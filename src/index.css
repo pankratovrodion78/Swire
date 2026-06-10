@@ -319,6 +319,13 @@ body { min-height: 100dvh; }
 .page-actions-row { display: flex; gap: 8px; justify-content: center; }
 .btn-full { width: 100%; }
 
+/* PDF Preview */
+.pdf-preview-container { width: 100%; }
+.pdf-preview-frame { width: 100%; height: 500px; border: 1px solid var(--border); border-radius: var(--radius); }
+@media (max-width: 480px) {
+  .pdf-preview-frame { height: 350px; }
+}
+
 /* Review */
 .review-section { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 14px; }

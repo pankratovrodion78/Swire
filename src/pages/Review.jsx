@@ -1,18 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
-import { downloadPDF } from '../utils/pdf';
+import { generatePDF, downloadPDF } from '../utils/pdf';
 
 export default function Review() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewError, setPreviewError] = useState('');
+  const previewRef = useRef(null);
 
   useEffect(() => {
     const r = getReport(id);
     if (!r) return navigate('/');
     setReport(r);
   }, [id, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   if (!report) return null;
 
@@ -27,6 +36,23 @@ export default function Review() {
     if (!ins.canPhoto) issues.push(`Inspection #${i + 1}: missing can photo`);
     if (!ins.casePhoto) issues.push(`Inspection #${i + 1}: missing case photo`);
   });
+
+  function showPreview() {
+    try {
+      setPreviewError('');
+      const doc = generatePDF(report);
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+      setTimeout(() => {
+        previewRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err) {
+      console.error('Preview failed:', err);
+      setPreviewError('Could not generate preview: ' + err.message);
+    }
+  }
 
   function finalizeAndDownload() {
     const updated = { ...report, status: 'completed' };
@@ -46,6 +72,12 @@ export default function Review() {
     setReport(updated);
     alert('Report saved successfully!');
     navigate('/');
+  }
+
+  function shareOrOpen() {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank');
+    }
   }
 
   return (
@@ -150,6 +182,26 @@ export default function Review() {
         </div>
       </div>
 
+      <div className="card" ref={previewRef}>
+        <h3>PDF Preview</h3>
+        <button className="btn btn-primary btn-full" onClick={showPreview} style={{ marginBottom: 12 }}>
+          Generate Preview
+        </button>
+        {previewError && <div className="alert alert-warning">{previewError}</div>}
+        {previewUrl && (
+          <div className="pdf-preview-container">
+            <iframe
+              src={previewUrl}
+              className="pdf-preview-frame"
+              title="Report Preview"
+            />
+            <button className="btn btn-outline btn-sm" onClick={shareOrOpen} style={{ marginTop: 8 }}>
+              Open in New Tab
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="page-actions-stacked">
         <button className="btn btn-primary btn-lg btn-full" onClick={finalizeAndDownload}>
           Complete & Download PDF
@@ -157,9 +209,6 @@ export default function Review() {
         <div className="page-actions-row">
           <button className="btn btn-outline" onClick={() => navigate(`/report/${id}/inspect`)}>
             ← Back
-          </button>
-          <button className="btn btn-outline" onClick={saveDraft}>
-            Draft PDF
           </button>
           <button className="btn btn-outline" onClick={saveWithoutPDF}>
             Save Only
