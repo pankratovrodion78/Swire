@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
+import RecipeSelector from '../components/RecipeSelector';
 
-const SHIFTS = ['1st Shift (6AM–2PM)', '2nd Shift (2PM–10PM)', '3rd Shift (10PM–6AM)'];
+const SHIFTS = ['1st Shift', '2nd Shift'];
 
 export default function ShiftSetup() {
   const { id } = useParams();
@@ -85,6 +86,18 @@ export default function ShiftSetup() {
             onChange={e => update('line', e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="card">
+        <h3>Product / Recipe Running</h3>
+        <p className="card-desc">
+          Select the product(s) you are running this shift. Barcode scans during inspection
+          will be verified against these. You can add more recipes mid-shift on the next page.
+        </p>
+        <RecipeSelector
+          selectedIds={report.selectedRecipeIds || []}
+          onChange={ids => update('selectedRecipeIds', ids)}
+        />
       </div>
 
       <div className="page-actions">

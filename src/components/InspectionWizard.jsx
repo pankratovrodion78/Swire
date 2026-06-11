@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { findRecipeByBarcode } from '../utils/recipes';
+import { findRecipeByBarcode, findRecipeByBarcodeInList } from '../utils/recipes';
 import BarcodeScanner from './BarcodeScanner';
+
+// Verify a scanned barcode against the products running this shift.
+// Returns { status: 'match'|'wrong'|'unknown', recipe }
+function verifyBarcode(code, selectedRecipes) {
+  const inRunning = findRecipeByBarcodeInList(code, selectedRecipes);
+  if (inRunning) return { status: 'match', recipe: inRunning };
+  const known = findRecipeByBarcode(code);
+  if (known) return { status: 'wrong', recipe: known };
+  return { status: 'unknown', recipe: null };
+}
 
 const TOTAL_STEPS = 6;
 const ROTATION_PHOTOS_NEEDED = 4;
@@ -13,12 +23,13 @@ function formatTime() {
   return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-export default function InspectionWizard({ onComplete, onCancel }) {
+export default function InspectionWizard({ onComplete, onCancel, selectedRecipes = [] }) {
   const [step, setStep] = useState(0);
 
   // Step 0 — Can Barcode
   const [canBarcode, setCanBarcode] = useState('');
   const [canRecipeMatch, setCanRecipeMatch] = useState(null);
+  const [canVerify, setCanVerify] = useState(null); // { status, recipe }
   const [canScanned, setCanScanned] = useState(false);
 
   // Step 1 — Can Rotation
@@ -35,6 +46,7 @@ export default function InspectionWizard({ onComplete, onCancel }) {
   // Step 3 — Package Barcode
   const [pkgBarcode, setPkgBarcode] = useState('');
   const [pkgRecipeMatch, setPkgRecipeMatch] = useState(null);
+  const [pkgVerify, setPkgVerify] = useState(null); // { status, recipe }
   const [pkgScanned, setPkgScanned] = useState(false);
 
   // Step 4 — Package Photo
@@ -205,6 +217,47 @@ export default function InspectionWizard({ onComplete, onCancel }) {
     });
   }
 
+  function rescanCan() {
+    setCanScanned(false);
+    setCanBarcode('');
+    setCanVerify(null);
+    setCanRecipeMatch(null);
+  }
+
+  function rescanPkg() {
+    setPkgScanned(false);
+    setPkgBarcode('');
+    setPkgVerify(null);
+    setPkgRecipeMatch(null);
+  }
+
+  function renderVerifyBadge(verify, onRescan) {
+    if (!verify) {
+      return <div className="wizard-match wizard-match-fail">NO BARCODE SCANNED</div>;
+    }
+    if (verify.status === 'match') {
+      return (
+        <div className="wizard-match wizard-match-success">
+          ✓ MATCH: {verify.recipe.name}
+        </div>
+      );
+    }
+    if (verify.status === 'wrong') {
+      return (
+        <div className="wizard-match wizard-match-wrong">
+          ⚠ WRONG PRODUCT — this is "{verify.recipe.name}", which is NOT in the products you are running this shift.
+          <button className="btn btn-sm btn-outline" onClick={onRescan} style={{ marginTop: 8 }}>Re-scan</button>
+        </div>
+      );
+    }
+    return (
+      <div className="wizard-match wizard-match-fail">
+        NO MATCH — barcode not found in any recipe. Verify the product is correct.
+        <button className="btn btn-sm btn-outline" onClick={onRescan} style={{ marginTop: 8 }}>Re-scan</button>
+      </div>
+    );
+  }
+
   // ── Step renderers ──────────────────────────────────────────────
 
   function renderStepCanBarcode() {
@@ -215,8 +268,9 @@ export default function InspectionWizard({ onComplete, onCancel }) {
           <BarcodeScanner
             onScan={(code) => {
               setCanBarcode(code);
-              const match = findRecipeByBarcode(code);
-              setCanRecipeMatch(match);
+              const v = verifyBarcode(code, selectedRecipes);
+              setCanVerify(v);
+              setCanRecipeMatch(v.status === 'match' ? v.recipe : null);
               setCanScanned(true);
             }}
             onClose={() => setCanScanned(true)}
@@ -229,15 +283,7 @@ export default function InspectionWizard({ onComplete, onCancel }) {
       <div className="wizard-step-content">
         <div className="wizard-result">
           <p className="wizard-scanned-code">Scanned: <strong>{canBarcode || '(none)'}</strong></p>
-          {canRecipeMatch ? (
-            <div className="wizard-match wizard-match-success">
-              MATCH: {canRecipeMatch.name}
-            </div>
-          ) : (
-            <div className="wizard-match wizard-match-fail">
-              NO MATCH
-            </div>
-          )}
+          {renderVerifyBadge(canVerify, () => rescanCan())}
         </div>
         <button className="btn btn-primary btn-lg wizard-next-btn" onClick={goNext}>Next</button>
       </div>
@@ -372,8 +418,9 @@ export default function InspectionWizard({ onComplete, onCancel }) {
           <BarcodeScanner
             onScan={(code) => {
               setPkgBarcode(code);
-              const match = findRecipeByBarcode(code);
-              setPkgRecipeMatch(match);
+              const v = verifyBarcode(code, selectedRecipes);
+              setPkgVerify(v);
+              setPkgRecipeMatch(v.status === 'match' ? v.recipe : null);
               setPkgScanned(true);
             }}
             onClose={() => setPkgScanned(true)}
@@ -386,15 +433,7 @@ export default function InspectionWizard({ onComplete, onCancel }) {
       <div className="wizard-step-content">
         <div className="wizard-result">
           <p className="wizard-scanned-code">Scanned: <strong>{pkgBarcode || '(none)'}</strong></p>
-          {pkgRecipeMatch ? (
-            <div className="wizard-match wizard-match-success">
-              MATCH: {pkgRecipeMatch.name}
-            </div>
-          ) : (
-            <div className="wizard-match wizard-match-fail">
-              NO MATCH
-            </div>
-          )}
+          {renderVerifyBadge(pkgVerify, () => rescanPkg())}
         </div>
         <button className="btn btn-primary btn-lg wizard-next-btn" onClick={goNext}>Next</button>
       </div>

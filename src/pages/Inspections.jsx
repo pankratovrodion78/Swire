@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
+import { getRecipesByIds } from '../utils/recipes';
 import InspectionWizard from '../components/InspectionWizard';
+import RecipeSelector from '../components/RecipeSelector';
 
 export default function Inspections() {
   const { id } = useParams();
@@ -9,6 +11,7 @@ export default function Inspections() {
   const [report, setReport] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState(null);
+  const [showRecipePicker, setShowRecipePicker] = useState(false);
   const reportRef = useRef(null);
 
   useEffect(() => {
@@ -50,12 +53,52 @@ export default function Inspections() {
 
   if (!report) return null;
 
+  const selectedRecipes = getRecipesByIds(report.selectedRecipeIds || []);
+
+  function updateSelectedRecipes(ids) {
+    const current = reportRef.current;
+    if (!current) return;
+    updateReport({ ...current, selectedRecipeIds: ids });
+  }
+
   return (
     <div className="page inspect-page">
       <div className="step-indicator">
         <span className="step done">1. Shift Info</span>
         <span className="step active">2. Inspections</span>
         <span className="step">3. Review</span>
+      </div>
+
+      <div className="card">
+        <div className="active-recipes-header">
+          <h3>Products Running ({selectedRecipes.length})</h3>
+          <button className="btn btn-sm btn-outline" onClick={() => setShowRecipePicker(v => !v)}>
+            {showRecipePicker ? 'Done' : '+ Add Recipe'}
+          </button>
+        </div>
+        {selectedRecipes.length > 0 ? (
+          <div className="active-recipe-chips">
+            {selectedRecipes.map(r => (
+              <span key={r.id} className="active-recipe-chip">
+                {r.name}
+                <button
+                  className="chip-remove"
+                  onClick={() => updateSelectedRecipes((report.selectedRecipeIds || []).filter(x => x !== r.id))}
+                >×</button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="field-hint">No products selected. Add the recipe(s) you are running so scans can be verified.</p>
+        )}
+        {showRecipePicker && (
+          <div style={{ marginTop: 12 }}>
+            <RecipeSelector
+              selectedIds={report.selectedRecipeIds || []}
+              onChange={updateSelectedRecipes}
+            />
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -181,6 +224,7 @@ export default function Inspections() {
 
       {wizardOpen && (
         <InspectionWizard
+          selectedRecipes={selectedRecipes}
           onComplete={handleWizardComplete}
           onCancel={() => setWizardOpen(false)}
         />

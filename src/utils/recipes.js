@@ -32,6 +32,20 @@ export function findRecipeByBarcode(barcode) {
   ) || null;
 }
 
+export function findRecipeByBarcodeInList(barcode, recipeList) {
+  if (!barcode || !barcode.trim() || !recipeList) return null;
+  const cleaned = barcode.trim();
+  return recipeList.find(r =>
+    r.barcodes.some(b => b === cleaned)
+  ) || null;
+}
+
+export function getRecipesByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const all = getAllRecipes();
+  return ids.map(id => all.find(r => r.id === id)).filter(Boolean);
+}
+
 export function createNewRecipe() {
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
