@@ -2,12 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { loadModel, getEmbedding } from '../utils/vision';
 import BarcodeScanner from './BarcodeScanner';
 
-const TYPES = [
-  { value: 'can', label: 'Can' },
-  { value: 'wrap', label: 'Wrap / Shrink Film' },
-  { value: 'case', label: 'Case / Cardboard' },
-  { value: 'tray', label: 'Tray' },
-];
+const DEFAULT_TYPE = 'can';
 
 const TOTAL_STEPS = 7;
 const MIN_ANGLES = 3;
@@ -28,7 +23,7 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
 
   // Step 0 — Basic info
   const [name, setName] = useState(existingRecipe?.name || '');
-  const [type, setType] = useState(existingRecipe?.type || 'can');
+  const [type] = useState(existingRecipe?.type || DEFAULT_TYPE);
   const [flavor, setFlavor] = useState(existingRecipe?.flavor || '');
   const [packageSize, setPackageSize] = useState(existingRecipe?.packageSize || '');
   const [description, setDescription] = useState(existingRecipe?.description || '');
@@ -174,16 +169,6 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
         <div className="form-group">
           <label className="field-label required">Recipe Name</label>
           <input className="input" placeholder="e.g. Coca-Cola Classic 12oz" value={name} onChange={e => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="field-label required">Product Type</label>
-          <div className="type-buttons">
-            {TYPES.map(t => (
-              <button key={t.value} className={`btn btn-condition ${type === t.value ? 'selected' : ''}`} onClick={() => setType(t.value)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="form-group">
           <label className="field-label">Flavor</label>
@@ -386,7 +371,7 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
           {canImage && <img src={canImage} alt={name} className="wizard-review-image" />}
           <div className="wizard-review-details">
             <h3>{name}</h3>
-            <span className={`badge badge-type badge-${type}`}>{TYPES.find(t => t.value === type)?.label}</span>
+            <span className="badge badge-type badge-can">Can / Wrap</span>
             {flavor && <p>Flavor: {flavor}</p>}
             {packageSize && <p>Size: {packageSize}</p>}
             {canBarcodes.length > 0 && <p>Can barcodes: {canBarcodes.join(', ')}</p>}
