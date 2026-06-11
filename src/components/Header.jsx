@@ -1,5 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// Bump this on each release so you can confirm the live site updated.
+export const APP_VERSION = 'v1.2 · guided can capture';
+
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -16,6 +19,7 @@ export default function Header() {
         <h1 className="header-title" onClick={() => navigate('/')}>
           Swire Line Packer Report
         </h1>
+        <span className="header-version">{APP_VERSION}</span>
       </div>
     </header>
   );

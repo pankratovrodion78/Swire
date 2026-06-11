@@ -47,6 +47,16 @@ body { min-height: 100dvh; }
   margin: 0;
   color: #fff;
 }
+.header-version {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
 
 /* Main */
 .app-main {
