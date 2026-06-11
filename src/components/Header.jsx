@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Bump this on each release so you can confirm the live site updated.
-export const APP_VERSION = 'v1.3 · date code OCR';
+export const APP_VERSION = 'v1.4 · smart date code';
 
 export default function Header() {
   const navigate = useNavigate();

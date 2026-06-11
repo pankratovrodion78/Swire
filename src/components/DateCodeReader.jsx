@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { parseDateCode, enhanceCanBottomImage, formatDateCodeSummary } from '../utils/dateCode';
+import {
+  parseDateCode, scoreParse, makeOcrVariants, rotateCanvas,
+  enhanceCanBottomImage, formatDateCodeSummary,
+} from '../utils/dateCode';
 
 let tesseractWorker = null;
 
@@ -7,8 +10,14 @@ async function getWorker() {
   if (tesseractWorker) return tesseractWorker;
   const Tesseract = await import('tesseract.js');
   tesseractWorker = await Tesseract.createWorker('eng');
+  await tesseractWorker.setParameters({
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789: ',
+    tessedit_pageseg_mode: '6', // uniform block of text
+  });
   return tesseractWorker;
 }
+
+const FIELD_NAMES = { month: 'Month', date: 'Date', dayCode: 'Day Code', time: 'Time' };
 
 export default function DateCodeReader({ onResult, onCancel, mode = 'standalone' }) {
   const videoRef = useRef(null);
@@ -23,6 +32,7 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
   const [processing, setProcessing] = useState(false);
   const [ocrReady, setOcrReady] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [passInfo, setPassInfo] = useState('');
 
   // Editable fields for manual correction
   const [editMonth, setEditMonth] = useState('');
@@ -85,7 +95,7 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
     setPhoto(photoUrl);
     stopCamera();
 
-    // Create enhanced version for OCR
+    // Preview thumbnail (multi-pass OCR will replace this with the best variant)
     const enhCanvas = document.createElement('canvas');
     enhCanvas.width = cropSize;
     enhCanvas.height = cropSize;
@@ -93,24 +103,65 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
     enhanceCanBottomImage(enhCanvas);
     setEnhanced(enhCanvas.toDataURL('image/png'));
 
-    canvasRef.current = enhCanvas;
+    // Keep the ORIGINAL capture for OCR — each pass applies its own enhancement
+    canvasRef.current = canvas;
+
+    // Start reading immediately — operator just snaps and approves
+    setTimeout(() => runOCR(), 50);
   }
 
+  // Multi-pass OCR: tries several image enhancements, then rotations,
+  // and keeps the best-scoring parse. Fills in unreadable characters
+  // using known-format inference for the operator to approve.
   async function runOCR() {
     if (!canvasRef.current) return;
     setProcessing(true);
     setOcrLoading(true);
+    setPassInfo('');
 
     try {
       const worker = await getWorker();
       setOcrReady(true);
       setOcrLoading(false);
 
-      const { data } = await worker.recognize(canvasRef.current);
-      const text = data.text.trim();
-      setOcrText(text);
+      let best = { parsed: null, text: '', score: -1, label: '' };
 
-      const result = parseDateCode(text);
+      const tryCanvas = async (canvas, label) => {
+        const { data } = await worker.recognize(canvas);
+        const text = (data.text || '').trim();
+        const result = parseDateCode(text);
+        const score = scoreParse(result);
+        if (score > best.score) {
+          best = { parsed: result, text, score, label };
+          setEnhanced(canvas.toDataURL('image/png'));
+        }
+        return result.confidence === 'high';
+      };
+
+      // Pass 1: enhancement variants at original orientation
+      const variants = makeOcrVariants(canvasRef.current);
+      let found = false;
+      for (let i = 0; i < variants.length && !found; i++) {
+        setPassInfo(`Reading… pass ${i + 1} of ${variants.length}`);
+        found = await tryCanvas(variants[i].canvas, variants[i].label);
+      }
+
+      // Pass 2: the code may be rotated — try the top 2 variants rotated
+      if (!found && best.score < 8) {
+        const rotations = [90, 270, 180];
+        outer:
+        for (const deg of rotations) {
+          for (let i = 0; i < 2; i++) {
+            setPassInfo(`Code may be rotated — trying ${deg}°…`);
+            const rotated = rotateCanvas(variants[i].canvas, deg);
+            if (await tryCanvas(rotated, `${variants[i].label}-rot${deg}`)) break outer;
+          }
+        }
+      }
+
+      setPassInfo('');
+      setOcrText(best.text);
+      const result = best.parsed || parseDateCode('');
       setParsed(result);
 
       if (result && result.confidence !== 'none') {
@@ -121,7 +172,9 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
       }
     } catch (err) {
       setOcrText('OCR failed: ' + err.message);
+      setParsed(parseDateCode(''));
       setOcrLoading(false);
+      setPassInfo('');
     }
     setProcessing(false);
   }
@@ -184,7 +237,9 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
           {cameraOn && !photo && (
             <>
               <p className="wizard-instruction">Hold the bottom of the can up to the camera</p>
-              <p className="wizard-sub-instruction">Line up the date code text inside the circle</p>
+              <p className="wizard-sub-instruction">
+                Turn the can so the code reads left-to-right, fill the circle, avoid glare
+              </p>
               <div className="wizard-camera-container">
                 <video ref={videoRef} playsInline muted className="wizard-camera-video" />
                 <div className="date-code-guide-overlay">
@@ -235,16 +290,26 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
           {processing && (
             <div className="date-code-processing">
               <div className="alert alert-info">
-                {!ocrReady ? 'Loading OCR engine (first time may take 10-20 seconds)...' : 'Reading date code...'}
+                {!ocrReady
+                  ? 'Loading OCR engine (first time may take 10-20 seconds)...'
+                  : (passInfo || 'Reading date code...')}
               </div>
+              {photo && (
+                <div className="date-code-photo-pair" style={{ marginTop: 10 }}>
+                  <div className="date-code-photo-box">
+                    <img src={photo} alt="Can bottom" className="date-code-preview" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* OCR Results */}
-          {parsed && (
+          {parsed && !processing && (
             <>
               <p className="wizard-instruction">
                 {parsed.confidence === 'high' ? 'Date code recognized!' :
+                 parsed.confidence === 'medium' ? 'Read with some characters filled in — approve below' :
                  parsed.confidence === 'partial' ? 'Partial read — verify the fields below' :
                  'Could not read automatically — enter manually'}
               </p>
@@ -253,6 +318,14 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
                 <div className={`date-code-result ${parsed.confidence === 'high' ? 'date-code-result-good' : 'date-code-result-partial'}`}>
                   <span className="date-code-raw">OCR: {ocrText}</span>
                   <span className="date-code-parsed">{formatDateCodeSummary(parsed)}</span>
+                </div>
+              )}
+
+              {parsed.inferred?.length > 0 && (
+                <div className="alert alert-warning" style={{ marginBottom: 0 }}>
+                  Some characters were hard to read. Best guess was filled in for:{' '}
+                  <strong>{parsed.inferred.map(f => FIELD_NAMES[f] || f).join(', ')}</strong>.
+                  Check the can and approve or correct below.
                 </div>
               )}
 
@@ -302,7 +375,7 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
                 onClick={handleConfirm}
                 disabled={!editMonth || !editDate}
               >
-                Confirm Date Code
+                {parsed.inferred?.length > 0 ? 'Approve & Save Date Code' : 'Confirm Date Code'}
               </button>
 
               <div className="date-code-actions-row">
