@@ -318,6 +318,8 @@ body { min-height: 100dvh; }
 }
 .page-actions-row { display: flex; gap: 8px; justify-content: center; }
 .btn-full { width: 100%; }
+.btn-share { background: #0078d4; color: #fff; border-color: #0078d4; }
+.btn-share:hover { background: #106ebe; border-color: #106ebe; }
 
 /* Vision / camera recognition */
 .vision-camera { position: relative; border-radius: var(--radius); overflow: hidden; background: #000; }

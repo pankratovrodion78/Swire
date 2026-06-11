@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getReport, saveReport } from '../utils/storage';
 import { generatePDF, downloadPDF } from '../utils/pdf';
 import { exportReportToExcel } from '../utils/excel';
+import { shareToOutlook } from '../utils/share';
 
 export default function Review() {
   const { id } = useParams();
@@ -78,6 +79,15 @@ export default function Review() {
   function shareOrOpen() {
     if (previewUrl) {
       window.open(previewUrl, '_blank');
+    }
+  }
+
+  async function handleShare() {
+    const result = await shareToOutlook(report);
+    if (result === 'mailto') {
+      downloadPDF(report);
+      exportReportToExcel(report);
+      alert('PDF and Excel files downloaded. Please attach them to the email that just opened.');
     }
   }
 
@@ -217,6 +227,9 @@ export default function Review() {
         </div>
         <button className="btn btn-outline btn-full" onClick={() => exportReportToExcel(report)} style={{ marginTop: 8 }}>
           Export to Excel (.xlsx)
+        </button>
+        <button className="btn btn-outline btn-full btn-share" onClick={handleShare} style={{ marginTop: 8 }}>
+          Email / Share Report
         </button>
       </div>
     </div>
