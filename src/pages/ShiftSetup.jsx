@@ -31,9 +31,8 @@ export default function ShiftSetup() {
     <div className="page setup-page">
       <div className="step-indicator">
         <span className="step active">1. Shift Info</span>
-        <span className="step">2. UPC Test</span>
-        <span className="step">3. Inspections</span>
-        <span className="step">4. Review</span>
+        <span className="step">2. Inspections</span>
+        <span className="step">3. Review</span>
       </div>
 
       <div className="card">
@@ -95,9 +94,9 @@ export default function ShiftSetup() {
         <button
           className="btn btn-primary"
           disabled={!canProceed()}
-          onClick={() => navigate(`/report/${id}/upc`)}
+          onClick={() => navigate(`/report/${id}/inspect`)}
         >
-          Next: UPC Bar Code Test →
+          Next: Inspections →
         </button>
       </div>
     </div>

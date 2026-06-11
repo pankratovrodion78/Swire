@@ -17,15 +17,13 @@ function buildExcelBlob(report) {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
 
-  const upcData = [['Time', 'Flavor', 'Package', 'Pass/Fail', 'Initials']];
-  for (const t of report.upcTests || []) {
-    upcData.push([t.time || '', t.flavor || '', t.pkg || '', t.result || '', t.initials || '']);
-  }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(upcData), 'UPC Tests');
-
-  const inspData = [['Time', 'Primary Code', 'Secondary Code', 'Condition', 'Can Photo', 'Case Photo']];
+  const inspData = [['Time', 'Can Barcode', 'Can Match', 'Date Code', 'Pkg Barcode', 'Pkg Match', 'Condition']];
   for (const ins of report.inspections || []) {
-    inspData.push([ins.time || '', ins.primaryCode || '', ins.secondaryCode || '', ins.packageCondition || '', ins.canPhoto ? 'Yes' : 'No', ins.casePhoto ? 'Yes' : 'No']);
+    inspData.push([
+      ins.time || '', ins.canBarcode || '', ins.canRecipeMatch || '',
+      ins.dateCode || '', ins.pkgBarcode || '', ins.pkgRecipeMatch || '',
+      ins.packageCondition || '',
+    ]);
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inspData), 'Inspections');
 
@@ -40,14 +38,9 @@ function buildReportText(report) {
   text += `Shift: ${report.shift || 'N/A'}\n`;
   text += `Line: ${report.line || 'N/A'}\n\n`;
 
-  text += `UPC TESTS (${(report.upcTests || []).length}):\n`;
-  for (const t of report.upcTests || []) {
-    text += `  ${t.time} — ${t.flavor || '?'} ${t.pkg || '?'} — ${t.result || '?'}\n`;
-  }
-
-  text += `\nINSPECTIONS (${(report.inspections || []).length}):\n`;
+  text += `INSPECTIONS (${(report.inspections || []).length}):\n`;
   for (const ins of report.inspections || []) {
-    text += `  ${ins.time} — Primary: ${ins.primaryCode || 'N/A'}, Secondary: ${ins.secondaryCode || 'N/A'}, Condition: ${ins.packageCondition || 'N/A'}\n`;
+    text += `  ${ins.time} — Can: ${ins.canBarcode || 'N/A'}${ins.canRecipeMatch ? ' (Match: ' + ins.canRecipeMatch + ')' : ''}, Pkg: ${ins.pkgBarcode || 'N/A'}, Condition: ${ins.packageCondition || 'N/A'}\n`;
   }
 
   if (report.notes) text += `\nNOTES: ${report.notes}\n`;

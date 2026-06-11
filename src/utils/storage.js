@@ -37,7 +37,6 @@ export function createNewReport() {
     line: '',
     status: 'in-progress',
     createdAt: new Date().toISOString(),
-    upcTests: [],
     scannerPerformance: [
       { pkg: 'Pkg 1', goodReads: '' },
       { pkg: 'Pkg 2', goodReads: '' },

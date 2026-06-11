@@ -18,40 +18,12 @@ export function generatePDF(report) {
   doc.text(`SHIFT: ${report.shift || ''}`, margin + 150, headerY);
   doc.text(`LINE: ${report.line || ''}`, margin + 200, headerY);
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('UPC — BAR CODE CHALLENGES', margin, 28);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    "Test scanner at the beginning of each shift, flavor and package. If the test fails (line & packer doesn't stop), contact Line Lead, Manager or Lab tech.",
-    margin, 32
-  );
-
-  const upcRows = (report.upcTests || []).map(t => [
-    t.time || '',
-    t.flavor || '',
-    t.pkg || '',
-    t.result || '',
-    t.initials || '',
-  ]);
-  if (upcRows.length === 0) upcRows.push(['', '', '', '', '']);
-
-  autoTable(doc, {
-    startY: 35,
-    margin: { left: margin, right: pageW / 2 + 5 },
-    head: [['Time', 'Flavor', 'Pkg', 'Pass / Fail', 'Initials']],
-    body: upcRows,
-    theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [200, 0, 0], textColor: 255, fontSize: 7 },
-  });
-
+  // Scanner Performance
   const spRows = (report.scannerPerformance || []).map(s => [s.pkg || '', s.goodReads || '']);
   if (spRows.length === 0) spRows.push(['', '']);
 
   autoTable(doc, {
-    startY: 35,
+    startY: 28,
     margin: { left: pageW / 2 + 5, right: margin },
     head: [['Scanner Performance — Pkg', '# of Good Reads']],
     body: spRows,
@@ -60,90 +32,81 @@ export function generatePDF(report) {
     headStyles: { fillColor: [200, 0, 0], textColor: 255, fontSize: 7 },
   });
 
-  let inspY = 75;
-  try {
-    const finalY = doc.lastAutoTable?.finalY || doc.previousAutoTable?.finalY;
-    if (finalY) inspY = Math.max(finalY, 75);
-  } catch {}
-  inspY += 6;
-
+  // Inspections header
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('PACKAGE VISUAL INSPECTIONS (every 30 minutes)', margin, inspY);
+  doc.text('PACKAGE INSPECTIONS (every 30 minutes)', margin, 28);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.text(
-    'FULL SECONDARY PKG TEAR DOWN required at the TOP OF EACH HOUR (Inspect all cans, wrap/tray, film)',
-    margin, inspY + 4
+    'Guided verification: barcode scan, can rotation photos, date code, package scan & photo',
+    margin, 32
   );
 
   const inspRows = (report.inspections || []).map(ins => [
     ins.time || '',
-    ins.primaryCode || '',
-    ins.secondaryCode || '',
+    ins.canBarcode || '',
+    ins.canRecipeMatch || (ins.canBarcode ? 'No Match' : ''),
+    ins.dateCode || (ins.dateCodePhoto ? 'Photo' : ''),
+    ins.pkgBarcode || '',
+    ins.pkgRecipeMatch || (ins.pkgBarcode ? 'No Match' : ''),
     ins.packageCondition || '',
+    `${ins.rotationPhotos?.length || 0} rot + ${ins.pkgPhoto ? '1' : '0'} pkg`,
   ]);
-  while (inspRows.length < 10) inspRows.push(['', '', '', '']);
-
-  const halfInsp = Math.ceil(inspRows.length / 2);
-  const leftRows = inspRows.slice(0, halfInsp);
-  const rightRows = inspRows.slice(halfInsp);
+  while (inspRows.length < 8) inspRows.push(['', '', '', '', '', '', '', '']);
 
   autoTable(doc, {
-    startY: inspY + 7,
+    startY: 35,
     margin: { left: margin, right: pageW / 2 + 5 },
-    head: [['TIME', 'PRIMARY CODE', 'SECONDARY CODE', 'PKG CONDITION']],
-    body: leftRows,
+    head: [['TIME', 'CAN CODE', 'CAN MATCH', 'DATE CODE', 'PKG CODE', 'PKG MATCH', 'CONDITION', 'PHOTOS']],
+    body: inspRows,
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [200, 0, 0], textColor: 255, fontSize: 7 },
+    styles: { fontSize: 6, cellPadding: 1.2 },
+    headStyles: { fillColor: [200, 0, 0], textColor: 255, fontSize: 6 },
   });
 
-  autoTable(doc, {
-    startY: inspY + 7,
-    margin: { left: pageW / 2 + 5, right: margin },
-    head: [['TIME', 'PRIMARY CODE', 'SECONDARY CODE', 'PKG CONDITION']],
-    body: rightRows.length ? rightRows : [['', '', '', '']],
-    theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [200, 0, 0], textColor: 255, fontSize: 7 },
-  });
+  // Photo pages
+  const hasPhotos = (report.inspections || []).some(ins =>
+    (ins.rotationPhotos && ins.rotationPhotos.length > 0) || ins.pkgPhoto || ins.dateCodePhoto
+  );
 
-  if ((report.inspections || []).some(ins => ins.canPhoto || ins.casePhoto)) {
+  if (hasPhotos) {
     doc.addPage('letter', 'portrait');
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('Inspection Photos', 105, 15, { align: 'center' });
 
     let yPos = 25;
-    for (const ins of report.inspections) {
-      if (!ins.canPhoto && !ins.casePhoto) continue;
+    for (const ins of report.inspections || []) {
+      const photos = [];
+      if (ins.rotationPhotos) {
+        ins.rotationPhotos.forEach((p, i) => photos.push({ data: p, label: `Rotation ${i + 1}` }));
+      }
+      if (ins.dateCodePhoto) photos.push({ data: ins.dateCodePhoto, label: 'Date Code' });
+      if (ins.pkgPhoto) photos.push({ data: ins.pkgPhoto, label: 'Package' });
+      if (photos.length === 0) continue;
+
       if (yPos > 240) {
         doc.addPage('letter', 'portrait');
         yPos = 15;
       }
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Inspection @ ${ins.time || ''}`, 15, yPos);
+      doc.text(`Inspection @ ${ins.time || ''}${ins.canRecipeMatch ? ' — ' + ins.canRecipeMatch : ''}`, 15, yPos);
       yPos += 5;
 
-      if (ins.canPhoto) {
+      for (const photo of photos) {
+        if (yPos > 230) {
+          doc.addPage('letter', 'portrait');
+          yPos = 15;
+        }
         try {
-          doc.addImage(ins.canPhoto, 'JPEG', 15, yPos, 80, 60);
+          doc.addImage(photo.data, 'JPEG', 15, yPos, 55, 40);
           doc.setFontSize(7);
           doc.setFont('helvetica', 'normal');
-          doc.text('Can Photo', 15, yPos + 63);
+          doc.text(photo.label, 15, yPos + 43);
         } catch {}
-        yPos += 68;
-      }
-      if (ins.casePhoto) {
-        try {
-          doc.addImage(ins.casePhoto, 'JPEG', 15, yPos, 80, 60);
-          doc.setFontSize(7);
-          doc.setFont('helvetica', 'normal');
-          doc.text('Case Photo', 15, yPos + 63);
-        } catch {}
-        yPos += 68;
+        yPos += 47;
       }
     }
   }

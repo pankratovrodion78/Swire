@@ -16,6 +16,15 @@ export default function Review() {
   useEffect(() => {
     const r = getReport(id);
     if (!r) return navigate('/');
+    if (!r.scannerPerformance) {
+      r.scannerPerformance = [
+        { pkg: 'Pkg 1', goodReads: '' },
+        { pkg: 'Pkg 2', goodReads: '' },
+        { pkg: 'Pkg 3', goodReads: '' },
+        { pkg: 'Pkg 4', goodReads: '' },
+        { pkg: 'Pkg 5', goodReads: '' },
+      ];
+    }
     setReport(r);
   }, [id, navigate]);
 
@@ -27,16 +36,26 @@ export default function Review() {
 
   if (!report) return null;
 
+  function update(field, value) {
+    const updated = { ...report, [field]: value };
+    setReport(updated);
+    saveReport(updated);
+  }
+
+  function updatePerformance(idx, value) {
+    const perf = [...report.scannerPerformance];
+    perf[idx] = { ...perf[idx], goodReads: value };
+    update('scannerPerformance', perf);
+  }
+
   const issues = [];
   if (!report.operator) issues.push('Operator name is missing');
   if (!report.shift) issues.push('Shift not selected');
-  if (report.upcTests.length === 0) issues.push('No UPC tests completed');
-  if (report.upcTests.some(t => !t.result)) issues.push('Some UPC tests have no Pass/Fail result');
   if (report.inspections.length === 0) issues.push('No 30-min inspections recorded');
   report.inspections.forEach((ins, i) => {
-    if (!ins.primaryCode) issues.push(`Inspection #${i + 1}: missing primary barcode`);
-    if (!ins.canPhoto) issues.push(`Inspection #${i + 1}: missing can photo`);
-    if (!ins.casePhoto) issues.push(`Inspection #${i + 1}: missing case photo`);
+    if (!ins.canBarcode) issues.push(`Inspection #${i + 1}: missing can barcode`);
+    if (!ins.rotationPhotos || ins.rotationPhotos.length === 0) issues.push(`Inspection #${i + 1}: missing rotation photos`);
+    if (!ins.pkgBarcode) issues.push(`Inspection #${i + 1}: missing package barcode`);
   });
 
   function showPreview() {
@@ -62,10 +81,6 @@ export default function Review() {
     setReport(updated);
     downloadPDF(updated);
     navigate('/');
-  }
-
-  function saveDraft() {
-    downloadPDF(report);
   }
 
   function saveWithoutPDF() {
@@ -95,9 +110,8 @@ export default function Review() {
     <div className="page review-page">
       <div className="step-indicator">
         <span className="step done">1. Shift Info</span>
-        <span className="step done">2. UPC Test</span>
-        <span className="step done">3. Inspections</span>
-        <span className="step active">4. Review</span>
+        <span className="step done">2. Inspections</span>
+        <span className="step active">3. Review</span>
       </div>
 
       <div className="card">
@@ -123,59 +137,66 @@ export default function Review() {
         </div>
 
         <div className="review-section">
-          <h3>UPC Bar Code Tests ({report.upcTests.length})</h3>
-          {report.upcTests.length > 0 ? (
-            <table className="review-table">
-              <thead>
-                <tr><th>Time</th><th>Flavor</th><th>Pkg</th><th>Result</th><th>Init.</th></tr>
-              </thead>
-              <tbody>
-                {report.upcTests.map((t, i) => (
-                  <tr key={i}>
-                    <td>{t.time}</td>
-                    <td>{t.flavor || '—'}</td>
-                    <td>{t.pkg || '—'}</td>
-                    <td><span className={`badge ${t.result === 'Pass' ? 'badge-success' : t.result === 'Fail' ? 'badge-danger' : ''}`}>{t.result || '—'}</span></td>
-                    <td>{t.initials || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <p className="text-muted">No tests recorded</p>}
-        </div>
-
-        <div className="review-section">
-          <h3>Scanner Performance</h3>
-          <div className="review-grid perf-grid">
-            {report.scannerPerformance.map((sp, i) => (
-              <div key={i}><strong>{sp.pkg}:</strong> {sp.goodReads || '—'} good reads</div>
-            ))}
-          </div>
-        </div>
-
-        <div className="review-section">
           <h3>30-Min Inspections ({report.inspections.length})</h3>
           {report.inspections.length > 0 ? (
             <table className="review-table">
               <thead>
-                <tr><th>Time</th><th>Primary</th><th>Secondary</th><th>Condition</th><th>Photos</th></tr>
+                <tr>
+                  <th>Time</th>
+                  <th>Can Barcode</th>
+                  <th>Can Match</th>
+                  <th>Pkg Barcode</th>
+                  <th>Pkg Match</th>
+                  <th>Condition</th>
+                  <th>Photos</th>
+                </tr>
               </thead>
               <tbody>
                 {report.inspections.map((ins, i) => (
                   <tr key={i}>
                     <td>{ins.time}</td>
-                    <td className="code-cell">{ins.primaryCode || '—'}</td>
-                    <td className="code-cell">{ins.secondaryCode || '—'}</td>
-                    <td>{ins.packageCondition || '—'}</td>
+                    <td className="code-cell">{ins.canBarcode || '—'}</td>
                     <td>
-                      {ins.canPhoto ? '✓ Can' : '✗ Can'}{' '}
-                      {ins.casePhoto ? '✓ Case' : '✗ Case'}
+                      {ins.canRecipeMatch ? (
+                        <span className="badge badge-success">Match</span>
+                      ) : ins.canBarcode ? (
+                        <span className="badge badge-danger">No Match</span>
+                      ) : '—'}
                     </td>
+                    <td className="code-cell">{ins.pkgBarcode || '—'}</td>
+                    <td>
+                      {ins.pkgRecipeMatch ? (
+                        <span className="badge badge-success">Match</span>
+                      ) : ins.pkgBarcode ? (
+                        <span className="badge badge-danger">No Match</span>
+                      ) : '—'}
+                    </td>
+                    <td>{ins.packageCondition || '—'}</td>
+                    <td>{(ins.rotationPhotos?.length || 0) + (ins.pkgPhoto ? 1 : 0) + (ins.dateCodePhoto ? 1 : 0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : <p className="text-muted">No inspections recorded</p>}
+        </div>
+
+        <div className="review-section">
+          <h3>Scanner Performance — Good Reads</h3>
+          <p className="field-hint">Enter the number of good reads for each package tested this shift</p>
+          <div className="scanner-perf-grid">
+            {report.scannerPerformance.map((sp, i) => (
+              <div key={i} className="form-row perf-row">
+                <span className="perf-label">{sp.pkg}</span>
+                <input
+                  className="input input-sm"
+                  type="number"
+                  placeholder="# good reads"
+                  value={sp.goodReads}
+                  onChange={e => updatePerformance(i, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="form-group">
@@ -184,11 +205,7 @@ export default function Review() {
             className="input textarea"
             placeholder="Any additional notes for this shift report..."
             value={report.notes || ''}
-            onChange={e => {
-              const updated = { ...report, notes: e.target.value };
-              setReport(updated);
-              saveReport(updated);
-            }}
+            onChange={e => update('notes', e.target.value)}
           />
         </div>
       </div>
