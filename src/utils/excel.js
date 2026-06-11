@@ -25,13 +25,17 @@ export function exportReportToExcel(report) {
   const wsPerf = XLSX.utils.aoa_to_sheet(perfData);
   XLSX.utils.book_append_sheet(wb, wsPerf, 'Scanner Performance');
 
-  const inspData = [['Time', 'Can Barcode', 'Can Match', 'Date Code', 'Pkg Barcode', 'Pkg Match', 'Condition', 'Rotation Photos', 'Pkg Photo', 'Date Code Photo']];
+  const inspData = [['Time', 'Can Barcode', 'Can Match', 'Date Code', 'Month', 'Date', 'Day Code', 'Time Code', 'Pkg Barcode', 'Pkg Match', 'Condition', 'Rotation Photos', 'Pkg Photo', 'Date Code Photo']];
   for (const ins of report.inspections || []) {
     inspData.push([
       ins.time || '',
       ins.canBarcode || '',
       ins.canRecipeMatch || '',
       ins.dateCode || '',
+      ins.dateCodeMonth || '',
+      ins.dateCodeDate || '',
+      ins.dateCodeDayCode || '',
+      ins.dateCodeTime || '',
       ins.pkgBarcode || '',
       ins.pkgRecipeMatch || '',
       ins.packageCondition || '',
@@ -41,7 +45,7 @@ export function exportReportToExcel(report) {
     ]);
   }
   const wsInsp = XLSX.utils.aoa_to_sheet(inspData);
-  wsInsp['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+  wsInsp['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, wsInsp, 'Inspections');
 
   const filename = `PackerReport_${report.date}_${report.shift || 'shift'}_${report.operator || 'op'}.xlsx`

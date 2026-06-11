@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { findRecipeByBarcode, findRecipeByBarcodeInList } from '../utils/recipes';
 import { cropToGuide } from '../utils/vision';
 import BarcodeScanner from './BarcodeScanner';
+import DateCodeReader from './DateCodeReader';
 
 // Verify a scanned barcode against the products running this shift.
 // Returns { status: 'match'|'wrong'|'unknown', recipe }
@@ -50,7 +51,8 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
   // Step 2 — Date Code
   const [dateCode, setDateCode] = useState('');
   const [dateCodePhoto, setDateCodePhoto] = useState(null);
-  const [dateCodeMode, setDateCodeMode] = useState(null); // 'scan' | 'photo'
+  const [dateCodeData, setDateCodeData] = useState(null);
+  const [dateCodeDone, setDateCodeDone] = useState(false);
 
   // Step 3 — Package Barcode
   const [pkgBarcode, setPkgBarcode] = useState('');
@@ -221,6 +223,10 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
       rotationPhotos,
       dateCode,
       dateCodePhoto,
+      dateCodeMonth: dateCodeData?.month || '',
+      dateCodeDate: dateCodeData?.date || '',
+      dateCodeDayCode: dateCodeData?.dayCode || '',
+      dateCodeTime: dateCodeData?.time || '',
       pkgBarcode,
       pkgRecipeMatch: pkgRecipeMatch ? pkgRecipeMatch.name : null,
       pkgPhoto,
@@ -368,71 +374,64 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
   }
 
   function renderStepDateCode() {
+    if (!dateCodeDone) {
+      return (
+        <DateCodeReader
+          mode="inline"
+          onResult={(result) => {
+            setDateCode(result.summary);
+            setDateCodePhoto(result.photo);
+            setDateCodeData(result);
+            setDateCodeDone(true);
+          }}
+          onCancel={() => setDateCodeDone(true)}
+        />
+      );
+    }
+
     return (
       <div className="wizard-step-content">
-        <p className="wizard-instruction">
-          Read the expiration or date code on the bottom of the can.
-        </p>
-
-        {!dateCodeMode && (
-          <div className="wizard-choice-buttons">
-            <button className="btn btn-primary btn-lg" onClick={() => setDateCodeMode('scan')}>
-              Scan Code
-            </button>
-            <button className="btn btn-outline btn-lg" onClick={() => { setDateCodeMode('photo'); startCamera(); }}>
-              Take Photo
-            </button>
-          </div>
-        )}
-
-        {dateCodeMode === 'scan' && !dateCode && (
-          <BarcodeScanner
-            onScan={(code) => {
-              setDateCode(code);
-              setDateCodeMode(null);
-            }}
-            onClose={() => setDateCodeMode(null)}
-          />
-        )}
-
-        {dateCodeMode === 'photo' && cameraActive && (
-          <div className="wizard-camera-container">
-            <video ref={videoRef} playsInline muted className="wizard-camera-video" />
-            <div className="wizard-camera-controls">
-              <button
-                className="btn btn-primary btn-capture"
-                onClick={() => {
-                  const photo = captureSinglePhoto();
-                  if (photo) {
-                    setDateCodePhoto(photo);
-                    setDateCodeMode(null);
-                  }
-                }}
-              >
-                Capture
-              </button>
-              <button className="btn btn-outline btn-sm" onClick={() => { stopCamera(); setDateCodeMode(null); }}>
-                Cancel
-              </button>
+        <p className="wizard-instruction">Date code captured</p>
+        <div className="wizard-result">
+          <p><strong>{dateCode}</strong></p>
+          {dateCodeData && (
+            <div className="date-code-fields" style={{ marginTop: 8 }}>
+              {dateCodeData.month && (
+                <div className="date-code-field">
+                  <span className="detail-label">Month</span>
+                  <span className="detail-value">{dateCodeData.month}</span>
+                </div>
+              )}
+              {dateCodeData.date && (
+                <div className="date-code-field">
+                  <span className="detail-label">Date</span>
+                  <span className="detail-value">{dateCodeData.date}</span>
+                </div>
+              )}
+              {dateCodeData.dayCode && (
+                <div className="date-code-field">
+                  <span className="detail-label">Day Code</span>
+                  <span className="detail-value">{dateCodeData.dayCode}</span>
+                </div>
+              )}
+              {dateCodeData.time && (
+                <div className="date-code-field">
+                  <span className="detail-label">Time</span>
+                  <span className="detail-value">{dateCodeData.time}</span>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {(dateCode || dateCodePhoto) && (
-          <div className="wizard-result">
-            {dateCode && <p>Date Code: <strong>{dateCode}</strong></p>}
-            {dateCodePhoto && (
-              <div className="wizard-photo-preview">
-                <img src={dateCodePhoto} alt="Date code" className="wizard-preview-img" />
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="wizard-nav-row">
-          <button className="btn btn-primary btn-lg wizard-next-btn" onClick={goNext}>Next</button>
-          <button className="btn btn-outline btn-sm wizard-skip-btn" onClick={goNext}>Skip</button>
+          )}
+          {dateCodePhoto && (
+            <div className="wizard-photo-preview" style={{ marginTop: 8 }}>
+              <img src={dateCodePhoto} alt="Date code" className="wizard-preview-img" />
+            </div>
+          )}
         </div>
+        <button className="btn btn-outline btn-sm" onClick={() => setDateCodeDone(false)} style={{ alignSelf: 'center' }}>
+          Redo Date Code
+        </button>
+        <button className="btn btn-primary btn-lg wizard-next-btn" onClick={goNext}>Next</button>
       </div>
     );
   }

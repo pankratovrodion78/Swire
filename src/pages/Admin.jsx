@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAllRecipes, saveRecipe, deleteRecipe } from '../utils/recipes';
 import { loadModel, getEmbedding, cosineSimilarity, classifyFrame, cropToGuide } from '../utils/vision';
 import RecipeWizard from '../components/RecipeWizard';
+import DateCodeReader from '../components/DateCodeReader';
 
 const TYPES = [
   { value: 'can', label: 'Can' },
@@ -39,6 +40,10 @@ export default function Admin() {
   const [spinResult, setSpinResult] = useState(null);
   const spinFramesRef = useRef([]);
   const busyRef = useRef(false);
+
+  // Date code test state
+  const [dateCodeTest, setDateCodeTest] = useState(false);
+  const [dateCodeResult, setDateCodeResult] = useState(null);
 
   // Camera (for test match & 360 verify)
   const videoRef = useRef(null);
@@ -265,7 +270,7 @@ export default function Admin() {
   const filtered = filter === 'all' ? recipes : recipes.filter(r => r.type === filter);
   const verifyRecipe = verifyRecipeId ? recipes.find(r => r.id === verifyRecipeId) : null;
   const trainedRecipeCount = recipes.filter(r => r.embeddings && r.embeddings.length > 0).length;
-  const isActiveModal = testingMatch || verifyRecipeId;
+  const isActiveModal = testingMatch || verifyRecipeId || dateCodeTest;
 
   return (
     <div className="page admin-page">
@@ -301,14 +306,67 @@ export default function Admin() {
           })}
         </div>
 
-        {trainedRecipeCount > 0 && (
-          <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {trainedRecipeCount > 0 && (
             <button className="btn btn-sm btn-outline" onClick={startTestMatch} disabled={!!isActiveModal}>
               Test Match ({trainedRecipeCount} trained)
             </button>
-          </div>
-        )}
+          )}
+          <button className="btn btn-sm btn-outline" onClick={() => setDateCodeTest(true)} disabled={!!isActiveModal}
+            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}>
+            Test Date Code Reader
+          </button>
+        </div>
       </div>
+
+      {/* Date Code Test */}
+      {dateCodeTest && (
+        <DateCodeReader
+          mode="standalone"
+          onResult={(result) => {
+            setDateCodeResult(result);
+            setDateCodeTest(false);
+          }}
+          onCancel={() => { setDateCodeTest(false); setDateCodeResult(null); }}
+        />
+      )}
+
+      {dateCodeResult && !dateCodeTest && (
+        <div className="card">
+          <h3>Date Code Result</h3>
+          <div className="date-code-result date-code-result-good" style={{ marginBottom: 12 }}>
+            <span className="date-code-parsed">{dateCodeResult.summary}</span>
+          </div>
+          <div className="date-code-fields">
+            <div className="date-code-field">
+              <span className="detail-label">Month</span>
+              <span className="detail-value">{dateCodeResult.month || '—'}</span>
+            </div>
+            <div className="date-code-field">
+              <span className="detail-label">Date</span>
+              <span className="detail-value">{dateCodeResult.date || '—'}</span>
+            </div>
+            <div className="date-code-field">
+              <span className="detail-label">Day Code</span>
+              <span className="detail-value">{dateCodeResult.dayCode || '—'}</span>
+            </div>
+            <div className="date-code-field">
+              <span className="detail-label">Time</span>
+              <span className="detail-value">{dateCodeResult.time || '—'}</span>
+            </div>
+          </div>
+          {dateCodeResult.photo && (
+            <div style={{ marginTop: 10 }}>
+              <img src={dateCodeResult.photo} alt="Date code" style={{ width: '100%', maxWidth: 200, borderRadius: 8 }} />
+            </div>
+          )}
+          <div className="form-actions" style={{ marginTop: 12 }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setDateCodeResult(null)}>Dismiss</button>
+            <button className="btn btn-outline btn-sm" onClick={() => { setDateCodeResult(null); setDateCodeTest(true); }}
+              style={{ borderColor: '#7c3aed', color: '#7c3aed' }}>Test Again</button>
+          </div>
+        </div>
+      )}
 
       {/* Test Match */}
       {testingMatch && (

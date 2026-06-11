@@ -166,6 +166,16 @@ export default function Inspections() {
                     <span className="detail-value">{ins.dateCode || (ins.dateCodePhoto ? 'Photo taken' : '—')}</span>
                   </div>
 
+                  {ins.dateCodeMonth && (
+                    <div className="inspection-detail">
+                      <span className="detail-label">Month / Date / Day</span>
+                      <span className="detail-value">
+                        {ins.dateCodeMonth} {ins.dateCodeDate}{ins.dateCodeDayCode ? ` / ${ins.dateCodeDayCode}` : ''}
+                        {ins.dateCodeTime ? ` @ ${ins.dateCodeTime}` : ''}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="inspection-detail">
                     <span className="detail-label">Condition</span>
                     <span className="detail-value">{ins.packageCondition || '—'}</span>
