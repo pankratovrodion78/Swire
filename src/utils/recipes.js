@@ -24,20 +24,25 @@ export function deleteRecipe(id) {
   localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
 }
 
+function matchesBarcode(recipe, code) {
+  const all = [
+    ...(recipe.barcodes || []),
+    ...(recipe.canBarcodes || []),
+    ...(recipe.pkgBarcodes || []),
+  ];
+  return all.some(b => b === code);
+}
+
 export function findRecipeByBarcode(barcode) {
   if (!barcode || !barcode.trim()) return null;
   const cleaned = barcode.trim();
-  return getAllRecipes().find(r =>
-    r.barcodes.some(b => b === cleaned)
-  ) || null;
+  return getAllRecipes().find(r => matchesBarcode(r, cleaned)) || null;
 }
 
 export function findRecipeByBarcodeInList(barcode, recipeList) {
   if (!barcode || !barcode.trim() || !recipeList) return null;
   const cleaned = barcode.trim();
-  return recipeList.find(r =>
-    r.barcodes.some(b => b === cleaned)
-  ) || null;
+  return recipeList.find(r => matchesBarcode(r, cleaned)) || null;
 }
 
 export function getRecipesByIds(ids) {

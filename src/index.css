@@ -275,8 +275,6 @@ body { min-height: 100dvh; }
 .barcode-row .input-with-scan { flex: 1; }
 .recipe-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .recipe-card { padding: 14px; }
-.recipe-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.recipe-card-header > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .recipe-name { font-size: 16px; }
 .badge-type { font-size: 10px; }
 .badge-can { background: #e3f2fd; color: #1565c0; }
@@ -284,7 +282,30 @@ body { min-height: 100dvh; }
 .badge-case { background: #fff3e0; color: #e65100; }
 .badge-tray { background: #e8f5e9; color: #2e7d32; }
 .recipe-details { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
-.recipe-card-actions { display: flex; gap: 6px; }
+.recipe-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Recipe card image */
+.recipe-card-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.recipe-card-image { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; }
+.recipe-card-header-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.recipe-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.badge-trained { background: #dcfce7; color: #16a34a; font-size: 10px; }
+.badge-untrained { background: #f1f5f9; color: #94a3b8; font-size: 10px; }
+
+/* Wizard barcode items */
+.wizard-barcode-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f5f5f5; border-radius: 6px; margin-bottom: 4px; }
+
+/* Wizard thumbnail selection */
+.wizard-thumb-wrap { position: relative; display: inline-block; cursor: pointer; }
+.wizard-thumb-wrap.wizard-thumb-selected .wizard-thumbnail { border-color: var(--red); border-width: 3px; }
+.wizard-thumb-label { position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); background: var(--red); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+
+/* Wizard review card */
+.wizard-review-card { background: #fafafa; border-radius: var(--radius); padding: 16px; display: flex; gap: 14px; align-items: flex-start; }
+.wizard-review-image { width: 100px; height: 100px; object-fit: cover; border-radius: 10px; border: 2px solid var(--border); flex-shrink: 0; }
+.wizard-review-details { flex: 1; }
+.wizard-review-details h3 { margin: 0 0 6px; font-size: 18px; }
+.wizard-review-details p { font-size: 13px; color: var(--text-muted); margin: 2px 0; }
 
 /* Page actions */
 .page-actions {
