@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllRecipes, saveRecipe, deleteRecipe } from '../utils/recipes';
-import { loadModel, getEmbedding, cosineSimilarity, classifyFrame } from '../utils/vision';
+import { loadModel, getEmbedding, cosineSimilarity, classifyFrame, cropToGuide } from '../utils/vision';
 import RecipeWizard from '../components/RecipeWizard';
 
 const TYPES = [
@@ -167,7 +167,8 @@ export default function Admin() {
     try {
       const samples = [];
       for (let i = 0; i < 3; i++) {
-        samples.push(await getEmbedding(v));
+        const cropped = cropToGuide(v);
+        samples.push(await getEmbedding(cropped));
         if (i < 2) await new Promise(r => setTimeout(r, 250));
       }
       const trainedRecipes = recipes.filter(r => r.embeddings && r.embeddings.length > 0);
@@ -313,10 +314,19 @@ export default function Admin() {
       {testingMatch && (
         <div className="card">
           <h3>Product Match Test</h3>
-          <p className="field-hint">Point camera at a product and press Identify.</p>
+          <p className="field-hint">Line up the product inside the can guide and press Identify.</p>
           {cameraOn && (
             <div className="vision-camera" style={{ marginBottom: 12 }}>
               <video ref={videoRef} playsInline muted className="camera-video" />
+              <div className="can-guide-overlay">
+                <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+                  <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                </svg>
+                <div className="can-guide-label">ALIGN PRODUCT</div>
+              </div>
             </div>
           )}
           <button className="btn btn-primary btn-full" onClick={identifyProduct} disabled={matchWorking || !cameraOn}>
@@ -353,6 +363,15 @@ export default function Admin() {
           {cameraOn && (
             <div className="vision-camera" style={{ marginBottom: 12 }}>
               <video ref={videoRef} playsInline muted className="camera-video" />
+              <div className="can-guide-overlay">
+                <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+                  <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                </svg>
+                <div className="can-guide-label">ROTATE INSIDE GUIDE</div>
+              </div>
               {spinState === 'running' && (
                 <div className="vision-spin-overlay">
                   <div className="vision-spin-text">SLOWLY ROTATE THE {verifyRecipe.type.toUpperCase()} 360°</div>

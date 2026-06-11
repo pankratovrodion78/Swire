@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  loadModel, classifyFrame, getEmbedding,
+  loadModel, classifyFrame, getEmbedding, cropToGuide,
   getReferences, saveReference, deleteReference, createReference,
   matchAgainstReferences,
 } from '../utils/vision';
@@ -147,7 +147,8 @@ export default function VisionTest() {
     if (!v || v.videoWidth === 0 || !teaching) return;
     setWorking(true);
     try {
-      const emb = await getEmbedding(v);
+      const cropped = cropToGuide(v);
+      const emb = await getEmbedding(cropped);
       const updated = { ...teaching, embeddings: [...teaching.embeddings, emb] };
       setTeaching(updated);
     } catch (err) {
@@ -157,8 +158,8 @@ export default function VisionTest() {
   }
 
   function finishTeaching() {
-    if (teaching.embeddings.length < 3) {
-      alert('Capture at least 3 angles (front, back, side) before saving.');
+    if (teaching.embeddings.length < 5) {
+      alert('Capture at least 5 angles (front, nutrition, size label, back, top) before saving.');
       return;
     }
     saveReference(teaching);
@@ -173,10 +174,10 @@ export default function VisionTest() {
     setWorking(true);
     setMatchResult(null);
     try {
-      // average over 3 quick samples for stability
       const samples = [];
       for (let i = 0; i < 3; i++) {
-        samples.push(await getEmbedding(v));
+        const cropped = cropToGuide(v);
+        samples.push(await getEmbedding(cropped));
         await new Promise(r => setTimeout(r, 250));
       }
       const allRanked = samples.map(s => matchAgainstReferences(s));
@@ -237,6 +238,15 @@ export default function VisionTest() {
           <>
             <div className="vision-camera">
               <video ref={videoRef} playsInline muted className="camera-video" />
+              <div className="can-guide-overlay">
+                <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+                  <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                  <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                </svg>
+                <div className="can-guide-label">ALIGN PRODUCT</div>
+              </div>
               {mode === 'live' && liveVerdict && (
                 <div className={`vision-verdict ${liveVerdict.cls}`}>
                   {liveVerdict.text}
@@ -399,8 +409,8 @@ export default function VisionTest() {
                 <div className="vision-teaching">
                   <div className="alert alert-info">
                     Training: <strong>{teaching.name}</strong><br />
-                    Hold the product in view and capture it from different angles —
-                    front, back, both sides, top. More angles = better recognition.
+                    Line up the product inside the can guide and capture from 5 positions:
+                    front label, nutrition panel, size/oz label, back side, top.
                   </div>
                   <div className="vision-angle-count">{teaching.embeddings.length} angle(s) captured</div>
                   <button className="btn btn-primary btn-full" onClick={captureAngle} disabled={working}>
@@ -408,8 +418,8 @@ export default function VisionTest() {
                   </button>
                   <div className="page-actions-row" style={{ marginTop: 10 }}>
                     <button className="btn btn-outline" onClick={() => setTeaching(null)}>Cancel</button>
-                    <button className="btn btn-primary" onClick={finishTeaching} disabled={teaching.embeddings.length < 3}>
-                      Save Product ({teaching.embeddings.length}/3 min)
+                    <button className="btn btn-primary" onClick={finishTeaching} disabled={teaching.embeddings.length < 5}>
+                      Save Product ({teaching.embeddings.length}/5 min)
                     </button>
                   </div>
                 </div>

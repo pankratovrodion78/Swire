@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { findRecipeByBarcode, findRecipeByBarcodeInList } from '../utils/recipes';
+import { cropToGuide } from '../utils/vision';
 import BarcodeScanner from './BarcodeScanner';
 
 // Verify a scanned barcode against the products running this shift.
@@ -128,9 +129,13 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
 
   // ── Rotation capture logic ──────────────────────────────────────
 
-  const captureFrame = useCallback(() => {
+  const captureFrame = useCallback((useCrop = false) => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return null;
+    if (useCrop) {
+      const cropped = cropToGuide(video);
+      return cropped.toDataURL('image/jpeg', 0.7);
+    }
     let canvas = canvasRef.current;
     if (!canvas) {
       canvas = document.createElement('canvas');
@@ -154,15 +159,14 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
         setRotationCountdown(null);
         setRotationCapturing(true);
 
-        // Capture first frame immediately
-        const first = captureFrame();
+        const first = captureFrame(true);
         if (first) {
           setRotationPhotos(prev => [...prev, first]);
         }
         let captured = first ? 1 : 0;
 
         intervalRef.current = setInterval(() => {
-          const frame = captureFrame();
+          const frame = captureFrame(true);
           if (frame) {
             captured += 1;
             setRotationPhotos(prev => {

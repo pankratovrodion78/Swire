@@ -53,6 +53,21 @@ export async function classifyFrame(el) {
   return { type, confidence, predictions };
 }
 
+// Crop to the can guide area (center 55% width, 75% height) for consistent framing
+export function cropToGuide(el) {
+  const w = el.videoWidth || el.width;
+  const h = el.videoHeight || el.height;
+  const guideW = Math.round(w * 0.55);
+  const guideH = Math.round(h * 0.75);
+  const sx = Math.round((w - guideW) / 2);
+  const sy = Math.round((h - guideH) / 2);
+  const canvas = document.createElement('canvas');
+  canvas.width = guideW;
+  canvas.height = guideH;
+  canvas.getContext('2d').drawImage(el, sx, sy, guideW, guideH, 0, 0, guideW, guideH);
+  return canvas;
+}
+
 // Get a normalized feature embedding for visual similarity matching
 export async function getEmbedding(el) {
   const model = await loadModel();

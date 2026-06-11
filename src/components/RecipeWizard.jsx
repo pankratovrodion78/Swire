@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { loadModel, getEmbedding } from '../utils/vision';
+import { loadModel, getEmbedding, cropToGuide } from '../utils/vision';
 import BarcodeScanner from './BarcodeScanner';
 
 const DEFAULT_TYPE = 'can';
@@ -24,19 +24,6 @@ function makeThumbnail(video, maxW = 300) {
   return canvas.toDataURL('image/jpeg', 0.7);
 }
 
-function cropToGuide(video) {
-  const canvas = document.createElement('canvas');
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  const guideW = Math.round(vw * 0.55);
-  const guideH = Math.round(vh * 0.75);
-  const sx = Math.round((vw - guideW) / 2);
-  const sy = Math.round((vh - guideH) / 2);
-  canvas.width = guideW;
-  canvas.height = guideH;
-  canvas.getContext('2d').drawImage(video, sx, sy, guideW, guideH, 0, 0, guideW, guideH);
-  return canvas;
-}
 
 export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
   const isEdit = !!existingRecipe;

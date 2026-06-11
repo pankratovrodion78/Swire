@@ -129,13 +129,18 @@ export default function CameraCapture({ label, onCapture, existingPhoto, expecte
       ) : streaming ? (
         <div className="camera-live">
           <video ref={videoRef} playsInline muted className="camera-video" />
-          <div className="camera-guide-overlay">
-            <div className="camera-guide-box" />
-            <p className="camera-guide-text">
+          <div className="can-guide-overlay">
+            <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+              <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+              <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+              <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+              <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+            </svg>
+            <div className="can-guide-label">
               {label.toLowerCase().includes('can')
-                ? 'Make sure the WHOLE CAN is visible'
-                : 'Make sure the WHOLE CASE is visible'}
-            </p>
+                ? 'ALIGN CAN INSIDE GUIDE'
+                : 'ALIGN PRODUCT INSIDE GUIDE'}
+            </div>
             {expectedProduct && (
               <p className="camera-expected-product">
                 Expected: {expectedProduct}
