@@ -5,7 +5,15 @@ import BarcodeScanner from './BarcodeScanner';
 const DEFAULT_TYPE = 'can';
 
 const TOTAL_STEPS = 7;
-const MIN_ANGLES = 3;
+const MIN_ANGLES = 5;
+
+const GUIDED_POSITIONS = [
+  { label: 'FRONT LABEL', hint: 'Show the front label inside the guide' },
+  { label: 'NUTRITION PANEL', hint: 'Rotate to show nutrition facts' },
+  { label: 'SIZE / OZ LABEL', hint: 'Show the FL OZ / volume text' },
+  { label: 'BACK SIDE', hint: 'Rotate to show the back of the can' },
+  { label: 'TOP OF CAN', hint: 'Show the top/lid of the can' },
+];
 
 function makeThumbnail(video, maxW = 300) {
   const canvas = document.createElement('canvas');
@@ -14,6 +22,20 @@ function makeThumbnail(video, maxW = 300) {
   canvas.height = video.videoHeight * scale;
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.7);
+}
+
+function cropToGuide(video) {
+  const canvas = document.createElement('canvas');
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const guideW = Math.round(vw * 0.55);
+  const guideH = Math.round(vh * 0.75);
+  const sx = Math.round((vw - guideW) / 2);
+  const sy = Math.round((vh - guideH) / 2);
+  canvas.width = guideW;
+  canvas.height = guideH;
+  canvas.getContext('2d').drawImage(video, sx, sy, guideW, guideH, 0, 0, guideW, guideH);
+  return canvas;
 }
 
 export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
@@ -104,13 +126,14 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
     }
   }
 
-  // Can visual capture
+  // Can visual capture — crops to guide area for better size differentiation
   async function captureCanAngle() {
     const v = videoRef.current;
     if (!v || v.videoWidth === 0) return;
     setWorking(true);
     try {
-      const emb = await getEmbedding(v);
+      const cropped = cropToGuide(v);
+      const emb = await getEmbedding(cropped);
       setCanEmbeddings(prev => [...prev, emb]);
       const thumb = makeThumbnail(v);
       setCanPhotos(prev => [...prev, thumb]);
@@ -218,21 +241,41 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
   }
 
   function renderCanVisual() {
+    const currentPos = GUIDED_POSITIONS[canEmbeddings.length] || null;
+    const allDone = canEmbeddings.length >= MIN_ANGLES;
+
     return (
       <div className="wizard-step-content">
         <p className="wizard-instruction">Visual scan of the can</p>
-        <p className="wizard-sub-instruction">
-          Capture the can from {MIN_ANGLES}+ angles (front, back, sides). The first photo becomes the recipe image.
-        </p>
+        {!allDone && currentPos ? (
+          <p className="wizard-sub-instruction">
+            Step {canEmbeddings.length + 1} of {MIN_ANGLES}: <strong>{currentPos.label}</strong> — {currentPos.hint}
+          </p>
+        ) : (
+          <p className="wizard-sub-instruction">
+            All {MIN_ANGLES} angles captured! You can capture more or continue.
+          </p>
+        )}
 
         {modelLoading && <div className="alert alert-info">Loading AI model...</div>}
 
         {cameraOn ? (
           <div className="wizard-camera-container">
             <video ref={videoRef} playsInline muted className="wizard-camera-video" />
+            <div className="can-guide-overlay">
+              <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+                <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+              </svg>
+              <div className="can-guide-label">
+                {!allDone && currentPos ? currentPos.label : 'EXTRA ANGLE'}
+              </div>
+            </div>
             <div className="wizard-camera-controls">
               <button className="btn btn-primary btn-capture" onClick={captureCanAngle} disabled={working}>
-                {working ? 'Capturing...' : 'Capture Angle'}
+                {working ? 'Capturing...' : `Capture ${!allDone && currentPos ? currentPos.label : 'Angle'}`}
               </button>
               <button className="btn btn-outline btn-sm" onClick={stopCamera}>Stop Camera</button>
             </div>
@@ -252,6 +295,7 @@ export default function RecipeWizard({ existingRecipe, onSave, onCancel }) {
             {canPhotos.map((p, i) => (
               <div key={i} className={`wizard-thumb-wrap ${canImage === p ? 'wizard-thumb-selected' : ''}`}>
                 <img src={p} alt={`Angle ${i + 1}`} className="wizard-thumbnail" onClick={() => setCanImage(p)} />
+                <span className="wizard-thumb-angle-label">{GUIDED_POSITIONS[i]?.label || `Extra ${i + 1}`}</span>
                 {canImage === p && <span className="wizard-thumb-label">Recipe Image</span>}
               </div>
             ))}

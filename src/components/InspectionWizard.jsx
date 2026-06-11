@@ -13,9 +13,17 @@ function verifyBarcode(code, selectedRecipes) {
 }
 
 const TOTAL_STEPS = 6;
-const ROTATION_PHOTOS_NEEDED = 4;
-const ROTATION_INTERVAL_MS = 2000;
+const ROTATION_PHOTOS_NEEDED = 5;
+const ROTATION_INTERVAL_MS = 2500;
 const COUNTDOWN_SECONDS = 3;
+
+const ROTATION_POSITIONS = [
+  'FRONT LABEL',
+  'NUTRITION PANEL',
+  'SIZE / OZ LABEL',
+  'BACK SIDE',
+  'TOP OF CAN',
+];
 
 const CONDITION_OPTIONS = ['Good', 'Damaged', 'Misaligned', 'Missing Label', 'Other'];
 
@@ -292,17 +300,29 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
 
   function renderStepCanRotation() {
     const done = rotationPhotos.length >= ROTATION_PHOTOS_NEEDED;
+    const currentLabel = ROTATION_POSITIONS[rotationPhotos.length] || 'EXTRA';
 
     return (
       <div className="wizard-step-content">
-        <p className="wizard-instruction">Slowly rotate the can in front of the camera.</p>
+        <p className="wizard-instruction">Slowly rotate the can inside the guide.</p>
         <p className="wizard-sub-instruction">
-          Photos captured: {rotationPhotos.length} / {ROTATION_PHOTOS_NEEDED}
+          {!done
+            ? `Position ${rotationPhotos.length + 1} of ${ROTATION_PHOTOS_NEEDED}: ${currentLabel}`
+            : `All ${ROTATION_PHOTOS_NEEDED} positions captured!`}
         </p>
 
         {cameraActive && (
           <div className="wizard-camera-container">
             <video ref={videoRef} playsInline muted className="wizard-camera-video" />
+            <div className="can-guide-overlay">
+              <svg className="can-guide-svg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
+                <ellipse cx="100" cy="30" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <line x1="45" y1="30" x2="45" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <line x1="155" y1="30" x2="155" y2="270" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+                <ellipse cx="100" cy="270" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeDasharray="6,4" />
+              </svg>
+              <div className="can-guide-label">{!done ? currentLabel : 'COMPLETE'}</div>
+            </div>
 
             {rotationCountdown !== null && (
               <div className="wizard-countdown-overlay">
@@ -320,7 +340,7 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
             )}
 
             {rotationCapturing && (
-              <div className="wizard-capturing-indicator">Capturing...</div>
+              <div className="wizard-capturing-indicator">Capturing — {currentLabel}</div>
             )}
           </div>
         )}
@@ -328,7 +348,10 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
         {rotationPhotos.length > 0 && (
           <div className="wizard-thumbnails">
             {rotationPhotos.map((photo, i) => (
-              <img key={i} src={photo} alt={`Rotation ${i + 1}`} className="wizard-thumbnail" />
+              <div key={i} className="wizard-thumb-wrap">
+                <img src={photo} alt={`Rotation ${i + 1}`} className="wizard-thumbnail" />
+                <span className="wizard-thumb-angle-label">{ROTATION_POSITIONS[i] || `Extra`}</span>
+              </div>
             ))}
           </div>
         )}
