@@ -343,16 +343,24 @@ export default function Admin() {
               <span className="detail-value">{dateCodeResult.month || '—'}</span>
             </div>
             <div className="date-code-field">
-              <span className="detail-label">Date</span>
-              <span className="detail-value">{dateCodeResult.date || '—'}</span>
+              <span className="detail-label">Exp Day</span>
+              <span className="detail-value">{dateCodeResult.expDay || '—'}</span>
             </div>
             <div className="date-code-field">
-              <span className="detail-label">Day Code</span>
-              <span className="detail-value">{dateCodeResult.dayCode || '—'}</span>
+              <span className="detail-label">Exp Year</span>
+              <span className="detail-value">{dateCodeResult.expYear ? '20' + dateCodeResult.expYear : '—'}</span>
+            </div>
+            <div className="date-code-field">
+              <span className="detail-label">Prod Day</span>
+              <span className="detail-value">{dateCodeResult.prodDay ? `${dateCodeResult.prodDay} — ${dateCodeResult.prodDayName}` : '—'}</span>
             </div>
             <div className="date-code-field">
               <span className="detail-label">Time</span>
               <span className="detail-value">{dateCodeResult.time || '—'}</span>
+            </div>
+            <div className="date-code-field">
+              <span className="detail-label">Line</span>
+              <span className="detail-value">{dateCodeResult.line || '—'}</span>
             </div>
           </div>
           {dateCodeResult.photo && (

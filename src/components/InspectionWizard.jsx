@@ -224,9 +224,12 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
       dateCode,
       dateCodePhoto,
       dateCodeMonth: dateCodeData?.month || '',
-      dateCodeDate: dateCodeData?.date || '',
-      dateCodeDayCode: dateCodeData?.dayCode || '',
+      dateCodeExpDay: dateCodeData?.expDay || '',
+      dateCodeExpYear: dateCodeData?.expYear || '',
+      dateCodeProdDay: dateCodeData?.prodDay || '',
+      dateCodeProdDayName: dateCodeData?.prodDayName || '',
       dateCodeTime: dateCodeData?.time || '',
+      dateCodeLine: dateCodeData?.line || '',
       pkgBarcode,
       pkgRecipeMatch: pkgRecipeMatch ? pkgRecipeMatch.name : null,
       pkgPhoto,
@@ -402,22 +405,34 @@ export default function InspectionWizard({ onComplete, onCancel, selectedRecipes
                   <span className="detail-value">{dateCodeData.month}</span>
                 </div>
               )}
-              {dateCodeData.date && (
+              {dateCodeData.expDay && (
                 <div className="date-code-field">
-                  <span className="detail-label">Date</span>
-                  <span className="detail-value">{dateCodeData.date}</span>
+                  <span className="detail-label">Exp Day</span>
+                  <span className="detail-value">{dateCodeData.expDay}</span>
                 </div>
               )}
-              {dateCodeData.dayCode && (
+              {dateCodeData.expYear && (
                 <div className="date-code-field">
-                  <span className="detail-label">Day Code</span>
-                  <span className="detail-value">{dateCodeData.dayCode}</span>
+                  <span className="detail-label">Exp Year</span>
+                  <span className="detail-value">20{dateCodeData.expYear}</span>
+                </div>
+              )}
+              {dateCodeData.prodDay && (
+                <div className="date-code-field">
+                  <span className="detail-label">Prod Day</span>
+                  <span className="detail-value">{dateCodeData.prodDay} — {dateCodeData.prodDayName}</span>
                 </div>
               )}
               {dateCodeData.time && (
                 <div className="date-code-field">
                   <span className="detail-label">Time</span>
                   <span className="detail-value">{dateCodeData.time}</span>
+                </div>
+              )}
+              {dateCodeData.line && (
+                <div className="date-code-field">
+                  <span className="detail-label">Line</span>
+                  <span className="detail-value">{dateCodeData.line}</span>
                 </div>
               )}
             </div>

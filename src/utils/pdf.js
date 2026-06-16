@@ -47,7 +47,7 @@ export function generatePDF(report) {
     ins.time || '',
     ins.canBarcode || '',
     ins.canRecipeMatch || (ins.canBarcode ? 'No Match' : ''),
-    ins.dateCode || (ins.dateCodeMonth ? `BB ${ins.dateCodeMonth} ${ins.dateCodeDate || ''} ${ins.dateCodeDayCode || ''}`.trim() : (ins.dateCodePhoto ? 'Photo' : '')),
+    ins.dateCode || (ins.dateCodeMonth ? `BB ${ins.dateCodeMonth}${ins.dateCodeExpDay || ''}${ins.dateCodeExpYear || ''} SC${ins.dateCodeProdDay || ''} ${ins.dateCodeTime || ''}${ins.dateCodeLine ? ' ' + ins.dateCodeLine : ''}`.trim() : (ins.dateCodePhoto ? 'Photo' : '')),
     ins.pkgBarcode || '',
     ins.pkgRecipeMatch || (ins.pkgBarcode ? 'No Match' : ''),
     ins.packageCondition || '',

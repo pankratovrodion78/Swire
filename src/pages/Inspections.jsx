@@ -168,10 +168,20 @@ export default function Inspections() {
 
                   {ins.dateCodeMonth && (
                     <div className="inspection-detail">
-                      <span className="detail-label">Month / Date / Day</span>
+                      <span className="detail-label">Best By</span>
                       <span className="detail-value">
-                        {ins.dateCodeMonth} {ins.dateCodeDate}{ins.dateCodeDayCode ? ` / ${ins.dateCodeDayCode}` : ''}
+                        {ins.dateCodeMonth} {ins.dateCodeExpDay || ''}{ins.dateCodeExpYear ? `, 20${ins.dateCodeExpYear}` : ''}
+                      </span>
+                    </div>
+                  )}
+
+                  {(ins.dateCodeProdDay || ins.dateCodeTime || ins.dateCodeLine) && (
+                    <div className="inspection-detail">
+                      <span className="detail-label">Production</span>
+                      <span className="detail-value">
+                        {ins.dateCodeProdDayName || ins.dateCodeProdDay || ''}
                         {ins.dateCodeTime ? ` @ ${ins.dateCodeTime}` : ''}
+                        {ins.dateCodeLine ? ` · Line ${ins.dateCodeLine}` : ''}
                       </span>
                     </div>
                   )}

@@ -17,7 +17,7 @@ async function getWorker() {
   return tesseractWorker;
 }
 
-const FIELD_NAMES = { month: 'Month', date: 'Date', dayCode: 'Day Code', time: 'Time' };
+const FIELD_NAMES = { month: 'Month', expDay: 'Exp Day', expYear: 'Exp Year', expDate: 'Exp Date', plant: 'Plant', prodDay: 'Prod Day', time: 'Time', line: 'Line' };
 
 export default function DateCodeReader({ onResult, onCancel, mode = 'standalone' }) {
   const videoRef = useRef(null);
@@ -36,9 +36,11 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
 
   // Editable fields for manual correction
   const [editMonth, setEditMonth] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [editDayCode, setEditDayCode] = useState('');
+  const [editExpDay, setEditExpDay] = useState('');
+  const [editExpYear, setEditExpYear] = useState('');
+  const [editProdDay, setEditProdDay] = useState('');
   const [editTime, setEditTime] = useState('');
+  const [editLine, setEditLine] = useState('');
 
   useEffect(() => {
     return () => stopCamera();
@@ -166,9 +168,11 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
 
       if (result && result.confidence !== 'none') {
         setEditMonth(result.month || '');
-        setEditDate(result.date || '');
-        setEditDayCode(result.dayCode || '');
+        setEditExpDay(result.expDay || '');
+        setEditExpYear(result.expYear || '');
+        setEditProdDay(result.prodDay || '');
         setEditTime(result.time || '');
+        setEditLine(result.line || '');
       }
     } catch (err) {
       setOcrText('OCR failed: ' + err.message);
@@ -185,37 +189,38 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
     setOcrText('');
     setParsed(null);
     setEditMonth('');
-    setEditDate('');
-    setEditDayCode('');
+    setEditExpDay('');
+    setEditExpYear('');
+    setEditProdDay('');
     setEditTime('');
+    setEditLine('');
     canvasRef.current = null;
     startCamera();
   }
 
-  function handleConfirm() {
-    onResult({
+  function buildResult(ocrRawValue) {
+    const prodDayNames = { A:'Monday', B:'Tuesday', C:'Wednesday', D:'Thursday', E:'Friday', F:'Saturday', G:'Sunday' };
+    return {
       photo,
       enhanced,
-      ocrRaw: ocrText,
+      ocrRaw: ocrRawValue,
       month: editMonth,
-      date: editDate,
-      dayCode: editDayCode,
+      expDay: editExpDay,
+      expYear: editExpYear,
+      prodDay: editProdDay,
+      prodDayName: prodDayNames[editProdDay] || '',
       time: editTime,
-      summary: `BB ${editMonth} ${editDate} ${editDayCode} ${editTime}`.trim(),
-    });
+      line: editLine,
+      summary: `BB ${editMonth}${editExpDay}${editExpYear} SC${editProdDay} ${editTime}${editLine ? ' ' + editLine : ''}`.trim(),
+    };
+  }
+
+  function handleConfirm() {
+    onResult(buildResult(ocrText));
   }
 
   function handleManualEntry() {
-    onResult({
-      photo,
-      enhanced,
-      ocrRaw: ocrText || '(manual)',
-      month: editMonth,
-      date: editDate,
-      dayCode: editDayCode,
-      time: editTime,
-      summary: `BB ${editMonth} ${editDate} ${editDayCode} ${editTime}`.trim(),
-    });
+    onResult(buildResult(ocrText || '(manual)'));
   }
 
   return (
@@ -357,23 +362,49 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
                   </select>
                 </div>
                 <div className="date-code-field">
-                  <label className="field-label required">Date (4-digit)</label>
-                  <input className="input" placeholder="e.g. 0827" value={editDate} onChange={e => setEditDate(e.target.value)} maxLength={4} />
+                  <label className="field-label required">Exp Day (01-31)</label>
+                  <input className="input" placeholder="e.g. 08" value={editExpDay} onChange={e => setEditExpDay(e.target.value)} maxLength={2} />
                 </div>
                 <div className="date-code-field">
-                  <label className="field-label">Day Code</label>
-                  <input className="input" placeholder="e.g. SCD" value={editDayCode} onChange={e => setEditDayCode(e.target.value.toUpperCase())} maxLength={4} />
+                  <label className="field-label required">Exp Year</label>
+                  <select className="input" value={editExpYear} onChange={e => setEditExpYear(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="26">26 (2026)</option>
+                    <option value="27">27 (2027)</option>
+                    <option value="28">28 (2028)</option>
+                  </select>
+                </div>
+                <div className="date-code-field">
+                  <label className="field-label">Prod Day</label>
+                  <select className="input" value={editProdDay} onChange={e => setEditProdDay(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="A">A — Monday</option>
+                    <option value="B">B — Tuesday</option>
+                    <option value="C">C — Wednesday</option>
+                    <option value="D">D — Thursday</option>
+                    <option value="E">E — Friday</option>
+                    <option value="F">F — Saturday</option>
+                    <option value="G">G — Sunday</option>
+                  </select>
                 </div>
                 <div className="date-code-field">
                   <label className="field-label">Time</label>
-                  <input className="input" placeholder="e.g. 12:01" value={editTime} onChange={e => setEditTime(e.target.value)} maxLength={5} />
+                  <input className="input" placeholder="e.g. 13:25" value={editTime} onChange={e => setEditTime(e.target.value)} maxLength={5} />
+                </div>
+                <div className="date-code-field">
+                  <label className="field-label">Line</label>
+                  <select className="input" value={editLine} onChange={e => setEditLine(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="1">1 — Line 1</option>
+                    <option value="3">3 — Line 3</option>
+                  </select>
                 </div>
               </div>
 
               <button
                 className="btn btn-primary btn-lg btn-full"
                 onClick={handleConfirm}
-                disabled={!editMonth || !editDate}
+                disabled={!editMonth || !editExpDay || !editExpYear}
               >
                 {parsed.inferred?.length > 0 ? 'Approve & Save Date Code' : 'Confirm Date Code'}
               </button>
@@ -400,19 +431,45 @@ export default function DateCodeReader({ onResult, onCancel, mode = 'standalone'
                   </select>
                 </div>
                 <div className="date-code-field">
-                  <label className="field-label required">Date (4-digit)</label>
-                  <input className="input" placeholder="e.g. 0827" value={editDate} onChange={e => setEditDate(e.target.value)} maxLength={4} />
+                  <label className="field-label required">Exp Day (01-31)</label>
+                  <input className="input" placeholder="e.g. 08" value={editExpDay} onChange={e => setEditExpDay(e.target.value)} maxLength={2} />
                 </div>
                 <div className="date-code-field">
-                  <label className="field-label">Day Code</label>
-                  <input className="input" placeholder="e.g. SCD" value={editDayCode} onChange={e => setEditDayCode(e.target.value.toUpperCase())} maxLength={4} />
+                  <label className="field-label required">Exp Year</label>
+                  <select className="input" value={editExpYear} onChange={e => setEditExpYear(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="26">26 (2026)</option>
+                    <option value="27">27 (2027)</option>
+                    <option value="28">28 (2028)</option>
+                  </select>
+                </div>
+                <div className="date-code-field">
+                  <label className="field-label">Prod Day</label>
+                  <select className="input" value={editProdDay} onChange={e => setEditProdDay(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="A">A — Monday</option>
+                    <option value="B">B — Tuesday</option>
+                    <option value="C">C — Wednesday</option>
+                    <option value="D">D — Thursday</option>
+                    <option value="E">E — Friday</option>
+                    <option value="F">F — Saturday</option>
+                    <option value="G">G — Sunday</option>
+                  </select>
                 </div>
                 <div className="date-code-field">
                   <label className="field-label">Time</label>
-                  <input className="input" placeholder="e.g. 12:01" value={editTime} onChange={e => setEditTime(e.target.value)} maxLength={5} />
+                  <input className="input" placeholder="e.g. 13:25" value={editTime} onChange={e => setEditTime(e.target.value)} maxLength={5} />
+                </div>
+                <div className="date-code-field">
+                  <label className="field-label">Line</label>
+                  <select className="input" value={editLine} onChange={e => setEditLine(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="1">1 — Line 1</option>
+                    <option value="3">3 — Line 3</option>
+                  </select>
                 </div>
               </div>
-              <button className="btn btn-primary btn-lg btn-full" onClick={handleManualEntry} disabled={!editMonth || !editDate}>
+              <button className="btn btn-primary btn-lg btn-full" onClick={handleManualEntry} disabled={!editMonth || !editExpDay || !editExpYear}>
                 Save Date Code
               </button>
               <button className="btn btn-outline btn-sm" onClick={startCamera} style={{ alignSelf: 'center' }}>

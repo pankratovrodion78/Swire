@@ -1,10 +1,13 @@
 // Date code parsing for Swire can bottom ink-jet codes.
-// Printed format (no spaces, dot-matrix): BBMAR0827SCD12:01
-//   BB    — best-by prefix
-//   MAR   — month
-//   0827  — expiration date (MMDD)
-//   SCD   — production day code
-//   12:01 — production time
+// Exact format (per plant spec): BB MAR0827 SCD 12:01 1
+//   BB    — "Best By" prefix, always BB
+//   MAR   — expiration month
+//   08    — expiration day (01-31)
+//   27    — expiration year (26/27/28 only — current year + 2)
+//   SC    — Denver plant code, always SC
+//   D     — production day of week: A=Mon B=Tue C=Wed D=Thu E=Fri F=Sat G=Sun
+//   12:01 — production time (hour 0-24, colon always printed, minutes 00-59)
+//   1     — production line: 1 or 3 only
 
 export const MONTH_LIST = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -14,14 +17,23 @@ const MONTHS = {
   SEP: 'September', OCT: 'October', NOV: 'November', DEC: 'December',
 };
 
+export const WEEKDAY_CODES = {
+  A: 'Monday', B: 'Tuesday', C: 'Wednesday', D: 'Thursday',
+  E: 'Friday', F: 'Saturday', G: 'Sunday',
+};
+
+export const VALID_YEARS = ['26', '27', '28'];
+export const VALID_LINES = ['1', '3'];
+
 // OCR confusion maps — dot-matrix ink misreads
 const TO_LETTER = { '0': 'O', '1': 'I', '2': 'Z', '3': 'E', '4': 'A', '5': 'S', '6': 'G', '7': 'T', '8': 'B', '9': 'G' };
 const TO_DIGIT = { O: '0', Q: '0', D: '0', C: '0', I: '1', L: '1', J: '1', Z: '2', E: '3', A: '4', S: '5', G: '6', B: '8', R: '8' };
+// Weekday slot confusions (digit/letter shapes that resolve to A-G)
+const TO_WEEKDAY = { '4': 'A', '8': 'B', '0': 'D', O: 'D', '6': 'G', '3': 'E', '9': 'G' };
 
 function mapToLetter(ch) { return TO_LETTER[ch] || ch; }
 function mapToDigit(ch) { return TO_DIGIT[ch] || ch; }
 function isDigit(ch) { return ch >= '0' && ch <= '9'; }
-function isLetter(ch) { return ch >= 'A' && ch <= 'Z'; }
 
 // Fuzzy month match on a 3-char window. Applies digit→letter mapping,
 // then allows at most 1 outright mismatch. Returns { month, subs } or null.
@@ -49,112 +61,155 @@ function fuzzyMonth(win) {
   return best;
 }
 
-// Parse OCR text into structured date code fields.
-// Tolerates missing spaces and common OCR character confusions,
-// "filling in the blanks" and flagging inferred fields for user approval.
+// Parse OCR text into structured date code fields using the known format,
+// validating each field against its legal range and "filling in the blanks"
+// for misread characters. Flags every inferred field for operator approval.
 export function parseDateCode(raw) {
-  if (!raw) return { raw: '', confidence: 'none', inferred: [] };
+  const empty = { raw: '', confidence: 'none', inferred: [], warnings: [] };
+  if (!raw) return empty;
   const cleaned = raw.toUpperCase().replace(/[^A-Z0-9:]/g, '');
-  if (!cleaned) return { raw: '', confidence: 'none', inferred: [] };
+  if (!cleaned) return empty;
 
-  // Find best month candidate anywhere in the string
+  const inferred = [];
+  const warnings = [];
+
+  // ── Month: fuzzy scan anywhere in the string ──
   let monthHit = null;
   for (let i = 0; i + 3 <= cleaned.length; i++) {
     const hit = fuzzyMonth(cleaned.slice(i, i + 3));
     if (hit && (!monthHit || hit.subs < monthHit.subs)) {
       monthHit = { ...hit, index: i };
-      if (hit.subs === 0) break; // exact match — take the first one
+      if (hit.subs === 0) break;
     }
   }
-  if (!monthHit) return { raw: cleaned, confidence: 'none', inferred: [] };
-
-  const inferred = [];
+  if (!monthHit) return { ...empty, raw: cleaned };
   if (monthHit.subs > 0) inferred.push('month');
   const month = monthHit.month;
-
-  // Extract 4-digit date right after the month (map letter confusions to digits)
   let pos = monthHit.index + 3;
-  let date = '';
-  let dateSubs = 0;
-  while (pos < cleaned.length && date.length < 4) {
+
+  // ── Expiration: 2-digit day (01-31) + 2-digit year (26-28) ──
+  let digits = '';
+  let digitSubs = 0;
+  while (pos < cleaned.length && digits.length < 4) {
     const ch = cleaned[pos];
+    if (ch === ':') { pos++; continue; }
     const d = mapToDigit(ch);
-    if (isDigit(d)) {
-      date += d;
-      if (d !== ch) dateSubs++;
-      pos++;
-    } else if (ch === ':') {
-      pos++; // stray colon — skip
-    } else {
+    if (!isDigit(d)) break;
+    digits += d;
+    if (d !== ch) digitSubs++;
+    pos++;
+  }
+  if (digitSubs > 2) digits = ''; // mostly-guessed digits = garbage
+
+  let expDay = '';
+  let expYear = '';
+  if (digits.length >= 2) {
+    expDay = digits.slice(0, 2);
+    const dayN = parseInt(expDay, 10);
+    if (dayN < 1 || dayN > 31) warnings.push(`Exp day "${expDay}" is outside 01-31`);
+  }
+  if (digits.length === 4) {
+    expYear = digits.slice(2, 4);
+    if (!VALID_YEARS.includes(expYear)) {
+      // First digit misread but decade digit valid → snap to 2X
+      if (['6', '7', '8'].includes(expYear[1])) {
+        expYear = '2' + expYear[1];
+        inferred.push('expYear');
+      } else {
+        warnings.push(`Exp year "${expYear}" should be 26, 27, or 28`);
+      }
+    }
+  }
+  if (digitSubs > 0 && (expDay || expYear)) inferred.push('expDate');
+
+  // ── Plant anchor "SC" + production weekday letter (A-G) ──
+  let plantFound = false;
+  let prodDay = '';
+  for (let i = pos; i + 2 <= cleaned.length; i++) {
+    const c1 = cleaned[i];
+    const c2 = cleaned[i + 1];
+    const sScore = c1 === 'S' ? 1 : (mapToLetter(c1) === 'S' ? 0.5 : 0);
+    const cScore = c2 === 'C' ? 1 : (['G', 'O', '0', 'Q', 'U', 'E'].includes(c2) ? 0.5 : 0);
+    if (sScore + cScore >= 1.5) {
+      plantFound = true;
+      if (sScore + cScore < 2) inferred.push('plant');
+      const wd = cleaned[i + 2] || '';
+      if (WEEKDAY_CODES[wd]) {
+        prodDay = wd;
+      } else if (TO_WEEKDAY[wd]) {
+        prodDay = TO_WEEKDAY[wd];
+        inferred.push('prodDay');
+      }
+      pos = i + 3;
       break;
     }
   }
-  // Guard against garbage: a real date should be mostly true digits
-  if (dateSubs > 2) {
-    date = '';
-    dateSubs = 0;
-  }
-  if (date.length < 4) {
-    // Month found but date incomplete — partial result
-    return {
-      raw: cleaned, prefix: 'BB', month, monthFull: MONTHS[month],
-      date, dayCode: '', dayCodeFull: '', time: '',
-      confidence: date.length >= 2 ? 'partial' : 'none', inferred,
-    };
-  }
-  if (dateSubs > 0) inferred.push('date');
+  if (!plantFound) warnings.push('Plant code "SC" not found');
 
-  // Extract day code: 2-4 chars (map digit confusions to letters),
-  // stopping when the remainder looks like a time (e.g. 12:01 / 12C01 / 12O1)
-  let dayCode = '';
-  let daySubs = 0;
-  while (pos < cleaned.length && dayCode.length < 4) {
-    const rest = cleaned.slice(pos);
-    const restMapped = rest.split('').map(c => (c === ':' ? ':' : mapToDigit(c))).join('');
-    // Stop at the time only when it starts with a true digit (e.g. "12:01", "12O1")
-    if (dayCode.length >= 2 && isDigit(rest[0]) && /^\d{1,2}:?\d{2}/.test(restMapped)) break;
-    const ch = cleaned[pos];
-    const l = mapToLetter(ch);
-    if (isLetter(l)) {
-      dayCode += l;
-      if (l !== ch) daySubs++;
-      pos++;
-    } else {
-      break;
-    }
-  }
-  if (daySubs > 0) inferred.push('dayCode');
-
-  // Extract time: try the raw remainder first (junk char = misread colon),
-  // then fall back to the confusion-mapped remainder
-  const rawRemainder = cleaned.slice(pos);
+  // ── Time: HH:MM with hour ≤ 24 and minutes ≤ 59 ──
+  const rem = cleaned.slice(pos);
   let time = '';
-  let timeMatch = rawRemainder.match(/(\d{1,2})[^0-9]?(\d{2})/);
-  if (!timeMatch) {
-    const mappedRemainder = rawRemainder.split('').map(c => (c === ':' ? ':' : mapToDigit(c))).join('');
-    timeMatch = mappedRemainder.match(/(\d{1,2}):?(\d{2})/);
+  let timeEnd = -1;
+  let match = null;
+  let timeInferred = false;
+  for (const m of rem.matchAll(/(\d{1,2}):(\d{2})/g)) {
+    if (+m[1] <= 24 && +m[2] <= 59) { match = m; break; }
   }
-  if (timeMatch) {
-    time = `${timeMatch[1]}:${timeMatch[2]}`;
-    if (!rawRemainder.startsWith(`${timeMatch[1]}:${timeMatch[2]}`)) inferred.push('time');
+  if (!match) {
+    for (const m of rem.matchAll(/(\d{1,2})[^0-9:](\d{2})/g)) {
+      if (+m[1] <= 24 && +m[2] <= 59) { match = m; timeInferred = true; break; }
+    }
+  }
+  if (!match) {
+    const mappedRem = rem.split('').map(c => (c === ':' ? ':' : mapToDigit(c))).join('');
+    for (const m of mappedRem.matchAll(/(\d{1,2}):?(\d{2})/g)) {
+      if (+m[1] <= 24 && +m[2] <= 59) { match = m; timeInferred = true; break; }
+    }
+  }
+  if (match) {
+    time = `${match[1]}:${match[2]}`;
+    timeEnd = match.index + match[0].length;
+    if (timeInferred) inferred.push('time');
   }
 
-  const haveAll = month && date.length === 4 && dayCode.length >= 2;
-  const confidence = haveAll
-    ? (inferred.length === 0 ? 'high' : 'medium')
-    : 'partial';
+  // ── Production line: 1 or 3 only ──
+  let line = '';
+  if (timeEnd >= 0) {
+    const after = rem.slice(timeEnd);
+    for (const ch of after) {
+      const d = ({ I: '1', L: '1', J: '1', E: '3' })[ch] || ch;
+      if (VALID_LINES.includes(d)) {
+        line = d;
+        if (d !== ch) inferred.push('line');
+        break;
+      }
+    }
+  }
+
+  const core = month && expDay && expYear;
+  const full = core && prodDay && time;
+  let confidence;
+  if (full) confidence = (inferred.length || warnings.length) ? 'medium' : 'high';
+  else if (core) confidence = 'partial';
+  else if (expDay) confidence = 'partial';
+  else confidence = 'none';
 
   return {
     raw: cleaned,
     prefix: 'BB',
     month,
     monthFull: MONTHS[month],
-    date,
-    dayCode,
-    dayCodeFull: dayCode,
+    expDay,
+    expYear,
+    expYearFull: expYear ? '20' + expYear : '',
+    plant: 'SC',
+    prodDay,
+    prodDayName: WEEKDAY_CODES[prodDay] || '',
     time,
+    line,
     confidence,
     inferred,
+    warnings,
   };
 }
 
@@ -162,22 +217,28 @@ export function parseDateCode(raw) {
 export function scoreParse(parsed) {
   if (!parsed) return -1;
   let score = 0;
-  if (parsed.month) score += 4;
-  if (parsed.date?.length === 4) score += 4;
-  else if (parsed.date?.length >= 2) score += 1;
-  if (parsed.dayCode?.length >= 2) score += 2;
+  if (parsed.month) score += 3;
+  if (parsed.expDay) score += 2;
+  if (parsed.expYear) score += 2;
+  if (parsed.prodDay) score += 2;
   if (parsed.time) score += 1;
+  if (parsed.line) score += 0.5;
   score -= (parsed.inferred?.length || 0) * 0.4;
+  score -= (parsed.warnings?.length || 0) * 0.5;
   return score;
 }
 
 export function formatDateCodeSummary(parsed) {
   if (!parsed || parsed.confidence === 'none') return 'Could not parse date code';
   const parts = [];
-  parts.push(`${parsed.prefix} ${parsed.monthFull || parsed.month}`);
-  if (parsed.date) parts.push(`Date: ${parsed.date}`);
-  if (parsed.dayCode) parts.push(`Day: ${parsed.dayCode}`);
-  if (parsed.time) parts.push(`Time: ${parsed.time}`);
+  if (parsed.month && parsed.expDay) {
+    parts.push(`Best By: ${parsed.monthFull || parsed.month} ${parsed.expDay}${parsed.expYearFull ? ', ' + parsed.expYearFull : ''}`);
+  } else if (parsed.month) {
+    parts.push(`Best By: ${parsed.monthFull || parsed.month}`);
+  }
+  if (parsed.prodDayName) parts.push(`Produced: ${parsed.prodDayName}${parsed.time ? ' @ ' + parsed.time : ''}`);
+  else if (parsed.time) parts.push(`Time: ${parsed.time}`);
+  if (parsed.line) parts.push(`Line ${parsed.line}`);
   return parts.join(' | ');
 }
 
