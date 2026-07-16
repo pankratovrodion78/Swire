@@ -32,6 +32,9 @@ export default function Home() {
         <button className="btn btn-primary btn-lg" onClick={startNewReport}>
           + Start New Shift Report
         </button>
+        <button className="btn btn-outline btn-wds" onClick={() => navigate('/wds')} style={{ marginTop: 10 }}>
+          📊 Weekly Direction Setting
+        </button>
         <button className="btn btn-outline" onClick={() => navigate('/admin')} style={{ marginTop: 10 }}>
           Recipe Management (Admin)
         </button>

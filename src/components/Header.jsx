@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Bump this on each release so you can confirm the live site updated.
-export const APP_VERSION = 'v1.5 · date code fields fix';
+export const APP_VERSION = 'v1.6 · Weekly Direction Setting dashboard';
 
 export default function Header() {
   const navigate = useNavigate();
