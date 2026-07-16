@@ -6,6 +6,7 @@ import ShiftSetup from './pages/ShiftSetup';
 import Inspections from './pages/Inspections';
 import Review from './pages/Review';
 import Admin from './pages/Admin';
+import WeeklyDS from './pages/WeeklyDS';
 
 const VisionTest = lazy(() => import('./pages/VisionTest'));
 
@@ -16,6 +17,7 @@ export default function App() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/wds" element={<WeeklyDS />} />
           <Route path="/admin" element={<Admin />} />
           <Route
             path="/vision"
